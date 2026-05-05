@@ -1,0 +1,166 @@
+"use client"
+
+import Link from "next/link"
+import { useState } from "react"
+import { Button } from "@/components/ui/button"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { ChefHat, Menu, X, User, Heart, History, LogOut, Settings } from "lucide-react"
+
+interface NavbarProps {
+  isLoggedIn?: boolean
+  user?: {
+    name: string
+    email: string
+    avatar?: string
+  }
+}
+
+export function Navbar({ isLoggedIn = false, user }: NavbarProps) {
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+
+  return (
+    <header className="sticky top-0 z-50 w-full border-b border-border bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/60">
+      <div className="container mx-auto flex h-16 items-center justify-between px-4">
+        <Link href="/" className="flex items-center gap-2">
+          <ChefHat className="h-8 w-8 text-primary" />
+          <span className="text-xl font-bold text-foreground">CookSmart AI</span>
+        </Link>
+
+        {/* Desktop Navigation */}
+        <nav className="hidden items-center gap-6 md:flex">
+          <Link href="/" className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground">
+            Trang Chủ
+          </Link>
+          <Link href="/recipes" className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground">
+            Món Ăn
+          </Link>
+          <Link href="/scan" className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground">
+            Nhận Diện Nguyên Liệu
+          </Link>
+          <Link href="/categories" className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground">
+            Danh Mục
+          </Link>
+        </nav>
+
+        {/* Desktop Auth */}
+        <div className="hidden items-center gap-4 md:flex">
+          {isLoggedIn && user ? (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" className="relative h-10 w-10 rounded-full">
+                  <Avatar className="h-10 w-10">
+                    <AvatarImage src={user.avatar} alt={user.name} />
+                    <AvatarFallback className="bg-primary text-primary-foreground">
+                      {user.name.charAt(0).toUpperCase()}
+                    </AvatarFallback>
+                  </Avatar>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent className="w-56" align="end" forceMount>
+                <div className="flex flex-col space-y-1 p-2">
+                  <p className="text-sm font-medium leading-none">{user.name}</p>
+                  <p className="text-xs leading-none text-muted-foreground">{user.email}</p>
+                </div>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem asChild>
+                  <Link href="/profile" className="flex cursor-pointer items-center">
+                    <User className="mr-2 h-4 w-4" />
+                    Hồ Sơ Cá Nhân
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link href="/favorites" className="flex cursor-pointer items-center">
+                    <Heart className="mr-2 h-4 w-4" />
+                    Món Yêu Thích
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link href="/history" className="flex cursor-pointer items-center">
+                    <History className="mr-2 h-4 w-4" />
+                    Lịch Sử Tìm Kiếm
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link href="/settings" className="flex cursor-pointer items-center">
+                    <Settings className="mr-2 h-4 w-4" />
+                    Cài Đặt
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem className="cursor-pointer text-destructive focus:text-destructive">
+                  <LogOut className="mr-2 h-4 w-4" />
+                  Đăng Xuất
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          ) : (
+            <>
+              <Link href="/login">
+                <Button variant="ghost">Đăng Nhập</Button>
+              </Link>
+              <Link href="/register">
+                <Button>Đăng Ký</Button>
+              </Link>
+            </>
+          )}
+        </div>
+
+        {/* Mobile Menu Button */}
+        <Button
+          variant="ghost"
+          size="icon"
+          className="md:hidden"
+          onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+        >
+          {mobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
+        </Button>
+      </div>
+
+      {/* Mobile Menu */}
+      {mobileMenuOpen && (
+        <div className="border-t border-border bg-card md:hidden">
+          <nav className="container mx-auto flex flex-col gap-4 px-4 py-4">
+            <Link href="/" className="text-sm font-medium text-foreground" onClick={() => setMobileMenuOpen(false)}>
+              Trang Chủ
+            </Link>
+            <Link href="/recipes" className="text-sm font-medium text-foreground" onClick={() => setMobileMenuOpen(false)}>
+              Món Ăn
+            </Link>
+            <Link href="/scan" className="text-sm font-medium text-foreground" onClick={() => setMobileMenuOpen(false)}>
+              Nhận Diện Nguyên Liệu
+            </Link>
+            <Link href="/categories" className="text-sm font-medium text-foreground" onClick={() => setMobileMenuOpen(false)}>
+              Danh Mục
+            </Link>
+            <div className="flex flex-col gap-2 pt-4">
+              {isLoggedIn ? (
+                <>
+                  <Link href="/profile">
+                    <Button variant="outline" className="w-full">Hồ Sơ Cá Nhân</Button>
+                  </Link>
+                  <Button variant="destructive" className="w-full">Đăng Xuất</Button>
+                </>
+              ) : (
+                <>
+                  <Link href="/login">
+                    <Button variant="outline" className="w-full">Đăng Nhập</Button>
+                  </Link>
+                  <Link href="/register">
+                    <Button className="w-full">Đăng Ký</Button>
+                  </Link>
+                </>
+              )}
+            </div>
+          </nav>
+        </div>
+      )}
+    </header>
+  )
+}
