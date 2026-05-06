@@ -1,22 +1,15 @@
-const { GoogleGenerativeAI } = require('@google/generative-ai');
+const { GoogleGenAI } = require('@google/genai');
 
-let genAI = null;
+let client = null;
 
 function getGeminiClient() {
-  if (!genAI) {
+  if (!client) {
     if (!process.env.GEMINI_API_KEY) {
       throw new Error('GEMINI_API_KEY chưa được cấu hình');
     }
-    genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+    client = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
   }
-  return genAI;
+  return client;
 }
 
-/**
- * Lấy model Gemini multimodal (hỗ trợ ảnh + text)
- */
-function getVisionModel() {
-  return getGeminiClient().getGenerativeModel({ model: 'gemini-1.5-flash' });
-}
-
-module.exports = { getVisionModel };
+module.exports = { getGeminiClient };

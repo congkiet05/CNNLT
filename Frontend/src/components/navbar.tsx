@@ -2,6 +2,7 @@
 
 import Link from "next/link"
 import { useState } from "react"
+import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
@@ -11,19 +12,18 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { ChefHat, Menu, X, User, Heart, History, LogOut, Settings } from "lucide-react"
+import { ChefHat, Menu, X, User, Heart, History, LogOut, Settings, Shield } from "lucide-react"
+import { useAuth } from "@/contexts/AuthContext"
 
-interface NavbarProps {
-  isLoggedIn?: boolean
-  user?: {
-    name: string
-    email: string
-    avatar?: string
-  }
-}
-
-export function Navbar({ isLoggedIn = false, user }: NavbarProps) {
+export function Navbar() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const { user, logout } = useAuth()
+  const router = useRouter()
+
+  const handleLogout = async () => {
+    await logout()
+    router.push("/login")
+  }
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/60">
@@ -47,26 +47,34 @@ export function Navbar({ isLoggedIn = false, user }: NavbarProps) {
           <Link href="/categories" className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground">
             Danh Mục
           </Link>
+          {user?.role === "admin" && (
+            <Link href="/admin" className="text-sm font-medium text-primary transition-colors hover:text-primary/80">
+              Admin
+            </Link>
+          )}
         </nav>
 
         {/* Desktop Auth */}
         <div className="hidden items-center gap-4 md:flex">
-          {isLoggedIn && user ? (
+          {user ? (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="relative h-10 w-10 rounded-full">
                   <Avatar className="h-10 w-10">
-                    <AvatarImage src={user.avatar} alt={user.name} />
+                    <AvatarImage src={user.avatar_url ?? ""} alt={user.display_name} />
                     <AvatarFallback className="bg-primary text-primary-foreground">
-                      {user.name.charAt(0).toUpperCase()}
+                      {user.display_name.charAt(0).toUpperCase()}
                     </AvatarFallback>
                   </Avatar>
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent className="w-56" align="end" forceMount>
                 <div className="flex flex-col space-y-1 p-2">
-                  <p className="text-sm font-medium leading-none">{user.name}</p>
+                  <p className="text-sm font-medium leading-none">{user.display_name}</p>
                   <p className="text-xs leading-none text-muted-foreground">{user.email}</p>
+                  {user.role === "admin" && (
+                    <p className="text-xs font-medium text-primary">Admin</p>
+                  )}
                 </div>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem asChild>
@@ -87,14 +95,19 @@ export function Navbar({ isLoggedIn = false, user }: NavbarProps) {
                     Lịch Sử Tìm Kiếm
                   </Link>
                 </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link href="/settings" className="flex cursor-pointer items-center">
-                    <Settings className="mr-2 h-4 w-4" />
-                    Cài Đặt
-                  </Link>
-                </DropdownMenuItem>
+                {user.role === "admin" && (
+                  <DropdownMenuItem asChild>
+                    <Link href="/admin" className="flex cursor-pointer items-center">
+                      <Shield className="mr-2 h-4 w-4" />
+                      Admin Dashboard
+                    </Link>
+                  </DropdownMenuItem>
+                )}
                 <DropdownMenuSeparator />
-                <DropdownMenuItem className="cursor-pointer text-destructive focus:text-destructive">
+                <DropdownMenuItem
+                  className="cursor-pointer text-destructive focus:text-destructive"
+                  onClick={handleLogout}
+                >
                   <LogOut className="mr-2 h-4 w-4" />
                   Đăng Xuất
                 </DropdownMenuItem>
@@ -139,20 +152,30 @@ export function Navbar({ isLoggedIn = false, user }: NavbarProps) {
             <Link href="/categories" className="text-sm font-medium text-foreground" onClick={() => setMobileMenuOpen(false)}>
               Danh Mục
             </Link>
+            {user?.role === "admin" && (
+              <Link href="/admin" className="text-sm font-medium text-primary" onClick={() => setMobileMenuOpen(false)}>
+                Admin Dashboard
+              </Link>
+            )}
             <div className="flex flex-col gap-2 pt-4">
-              {isLoggedIn ? (
+              {user ? (
                 <>
-                  <Link href="/profile">
+                  <div className="px-1 text-sm text-muted-foreground">
+                    Xin chào, <span className="font-medium text-foreground">{user.display_name}</span>
+                  </div>
+                  <Link href="/profile" onClick={() => setMobileMenuOpen(false)}>
                     <Button variant="outline" className="w-full">Hồ Sơ Cá Nhân</Button>
                   </Link>
-                  <Button variant="destructive" className="w-full">Đăng Xuất</Button>
+                  <Button variant="destructive" className="w-full" onClick={handleLogout}>
+                    Đăng Xuất
+                  </Button>
                 </>
               ) : (
                 <>
-                  <Link href="/login">
+                  <Link href="/login" onClick={() => setMobileMenuOpen(false)}>
                     <Button variant="outline" className="w-full">Đăng Nhập</Button>
                   </Link>
-                  <Link href="/register">
+                  <Link href="/register" onClick={() => setMobileMenuOpen(false)}>
                     <Button className="w-full">Đăng Ký</Button>
                   </Link>
                 </>

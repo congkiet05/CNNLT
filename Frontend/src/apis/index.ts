@@ -69,10 +69,14 @@ export const tokenStorage = {
   setTokens: (access: string, refresh: string) => {
     localStorage.setItem(TOKEN_KEY, access);
     localStorage.setItem(REFRESH_KEY, refresh);
+    // Lưu vào cookie để middleware đọc được (route guard)
+    document.cookie = `access_token=${access}; path=/; max-age=3600; SameSite=Lax`;
   },
   clearTokens: () => {
     localStorage.removeItem(TOKEN_KEY);
     localStorage.removeItem(REFRESH_KEY);
+    // Xóa cookie
+    document.cookie = 'access_token=; path=/; max-age=0';
   },
 };
 

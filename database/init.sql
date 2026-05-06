@@ -29,7 +29,7 @@ BEGIN
                             CONSTRAINT chk_users_role CHECK (role IN ('user', 'admin')),
         is_active       BIT                 NOT NULL DEFAULT 1,
         avatar_url      NVARCHAR(500)       NULL,
-        google_id       NVARCHAR(255)       NULL UNIQUE,    -- Google OAuth sub
+        google_id       NVARCHAR(255)       NULL,           -- Google OAuth sub (không UNIQUE vì nhiều NULL)
         created_at      DATETIME2           NOT NULL DEFAULT GETDATE(),
         updated_at      DATETIME2           NOT NULL DEFAULT GETDATE()
     );
@@ -91,11 +91,10 @@ BEGIN
         difficulty      NVARCHAR(50)        NULL    -- "Dễ" | "Trung bình" | "Khó"
                             CONSTRAINT chk_recipes_difficulty
                             CHECK (difficulty IN ('Dễ', 'Trung bình', 'Khó') OR difficulty IS NULL),
-        -- Trường tóm tắt nguyên liệu dạng text thuần để Full-Text Search
-        -- Được cập nhật thủ công bởi crawl script (không dùng computed column
-        -- vì ingredients là NVARCHAR(MAX) không hỗ trợ PERSISTED)
-        ingredients_text NVARCHAR(MAX)      NULL,
-        source_url      NVARCHAR(1000)      NULL UNIQUE,  -- UNIQUE để tránh crawl trùng
+        -- Trường tóm tắt nguyên liệu dạng text thuần để search
+        -- Giới hạn 450 ký tự để index an toàn (NVARCHAR(450) = 900 bytes < 1700 bytes limit)
+        ingredients_text NVARCHAR(450)      NULL,
+        source_url      NVARCHAR(850)       NULL UNIQUE,  -- UNIQUE để tránh crawl trùng (≤850 để fit index)
         source_name     NVARCHAR(100)       NULL,   -- "Cookpad" | "Savoury Days"
         is_active       BIT                 NOT NULL DEFAULT 1,  -- Admin có thể ẩn công thức
         created_at      DATETIME2           NOT NULL DEFAULT GETDATE(),
@@ -239,6 +238,8 @@ GO
 IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name='idx_users_email' AND object_id = OBJECT_ID('users'))
     CREATE INDEX idx_users_email ON users(email);
 GO
+SET QUOTED_IDENTIFIER ON;
+GO
 IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name='idx_users_google_id' AND object_id = OBJECT_ID('users'))
     CREATE INDEX idx_users_google_id ON users(google_id) WHERE google_id IS NOT NULL;
 GO
@@ -260,6 +261,8 @@ GO
 -- recipes
 IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name='idx_recipes_name' AND object_id = OBJECT_ID('recipes'))
     CREATE INDEX idx_recipes_name ON recipes(name);
+GO
+SET QUOTED_IDENTIFIER ON;
 GO
 IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name='idx_recipes_source_url' AND object_id = OBJECT_ID('recipes'))
     CREATE INDEX idx_recipes_source_url ON recipes(source_url) WHERE source_url IS NOT NULL;
@@ -295,36 +298,22 @@ IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name='idx_audit_admin_id' AND obj
 GO
 
 -- ============================================================
--- FULL-TEXT SEARCH (cho recipe-service RAG)
+-- FULL-TEXT SEARCH
+-- NOTE: SQL Server Express không hỗ trợ Full-Text Search.
+-- Dùng LIKE hoặc CONTAINS với regular index thay thế.
+-- Nếu dùng SQL Server Standard/Enterprise, bỏ comment phần dưới.
 -- ============================================================
 
-IF NOT EXISTS (SELECT * FROM sys.fulltext_catalogs WHERE name = 'recipe_catalog')
-BEGIN
-    CREATE FULLTEXT CATALOG recipe_catalog AS DEFAULT;
-END
-GO
+-- IF NOT EXISTS (SELECT * FROM sys.fulltext_catalogs WHERE name = 'recipe_catalog')
+-- BEGIN
+--     CREATE FULLTEXT CATALOG recipe_catalog AS DEFAULT;
+-- END
+-- GO
+-- ... (tạo fulltext index tương tự như cũ nếu cần)
 
--- Tạo Full-Text Index trên recipes.name và recipes.ingredients_text
--- Dùng tên PK động thay vì hardcode
-IF NOT EXISTS (
-    SELECT 1 FROM sys.fulltext_indexes fi
-    JOIN sys.tables t ON fi.object_id = t.object_id
-    WHERE t.name = 'recipes'
-)
-BEGIN
-    DECLARE @pk_name NVARCHAR(255);
-    SELECT @pk_name = i.name
-    FROM sys.indexes i
-    JOIN sys.tables t ON i.object_id = t.object_id
-    WHERE t.name = 'recipes' AND i.is_primary_key = 1;
-
-    DECLARE @sql NVARCHAR(MAX);
-    SET @sql = N'CREATE FULLTEXT INDEX ON recipes(name LANGUAGE 1066, ingredients_text LANGUAGE 1066)
-                 KEY INDEX ' + QUOTENAME(@pk_name) + N'
-                 ON recipe_catalog
-                 WITH CHANGE_TRACKING AUTO;';
-    EXEC sp_executesql @sql;
-END
+-- Thay thế: index thường trên ingredients_text để hỗ trợ LIKE search
+IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name='idx_recipes_ingredients_text' AND object_id = OBJECT_ID('recipes'))
+    CREATE INDEX idx_recipes_ingredients_text ON recipes(ingredients_text);
 GO
 
 -- ============================================================
@@ -421,6 +410,20 @@ BEGIN
         '$2b$10$lnJLi0Fe/8h6C9phjCl0PuwCzdDXBIsd4v.xxT8JInDCyoHg5puyy',
         'Admin CookSmart',
         'admin'
+    );
+END
+GO
+
+-- User thường mặc định để test
+-- Password: User@123 (bcrypt hash, salt rounds=10)
+IF NOT EXISTS (SELECT 1 FROM users WHERE email = 'user@cooksmart.ai')
+BEGIN
+    INSERT INTO users (email, password, display_name, role)
+    VALUES (
+        'user@cooksmart.ai',
+        '$2b$10$SnxGLPorVPFwp8zAI0YHDe5eSuQa8ZbPbu2VEzmpO.VWEQk0l51Mm',
+        'Người Dùng Test',
+        'user'
     );
 END
 GO
