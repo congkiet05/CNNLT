@@ -7,6 +7,19 @@ const nextConfig = {
   images: {
     unoptimized: true,
   },
+  // Proxy local: chuyển /api/* đến đúng service khi chạy local
+  async rewrites() {
+    return [
+      {
+        source: '/api/auth/:path*',
+        destination: 'http://localhost:3001/api/auth/:path*',
+      },
+      {
+        source: '/api/ingredients/:path*',
+        destination: 'http://localhost:3003/api/ingredients/:path*',
+      },
+    ];
+  },
 }
 
 export default nextConfig

@@ -1,4 +1,6 @@
-const { getVisionModel } = require('../config/gemini');
+const { getGeminiClient } = require('../config/gemini');
+
+const GEMINI_MODEL = 'gemini-2.0-flash';
 
 // Prompt chi tiết gửi kèm ảnh cho Gemini
 const INGREDIENT_PROMPT = `Hãy đóng vai một chuyên gia ẩm thực. Nhìn vào bức ảnh này và liệt kê tất cả nguyên liệu nấu ăn bạn thấy.
@@ -13,20 +15,7 @@ Quy tắc:
 - Nếu không nhận diện được nguyên liệu nào, trả về mảng rỗng: []`;
 
 /**
- * Chuyển buffer ảnh sang định dạng Gemini yêu cầu (inlineData)
- */
-function bufferToGenerativePart(buffer, mimeType) {
-  return {
-    inlineData: {
-      data: buffer.toString('base64'),
-      mimeType,
-    },
-  };
-}
-
-/**
  * Gộp và loại bỏ nguyên liệu trùng lặp từ nhiều ảnh.
- * So sánh tên không phân biệt hoa thường.
  */
 function mergeIngredients(lists) {
   const map = new Map();
@@ -53,30 +42,58 @@ async function recognizeIngredients(req, res) {
       return res.status(400).json({ success: false, message: 'Vui lòng upload ít nhất 1 ảnh' });
     }
 
-    const model = getVisionModel();
+    // MOCK MODE: bật khi GEMINI_MOCK=true trong .env (dùng để test UI khi quota hết)
+    if (process.env.GEMINI_MOCK === 'true') {
+      return res.status(200).json({
+        success: true,
+        ingredients: [
+          { ten_nguyen_lieu: 'Cà chua', so_luong: 2, don_vi: 'quả' },
+          { ten_nguyen_lieu: 'Trứng gà', so_luong: 3, don_vi: 'quả' },
+          { ten_nguyen_lieu: 'Hành lá', so_luong: 1, don_vi: 'bó' },
+          { ten_nguyen_lieu: 'Tỏi', so_luong: 3, don_vi: 'tép' },
+          { ten_nguyen_lieu: 'Thịt bò', so_luong: 200, don_vi: 'gram' },
+        ],
+        count: 5,
+        mock: true,
+      });
+    }
+
+    const ai = getGeminiClient();
     const allIngredientLists = [];
 
     // Xử lý từng ảnh
     for (const file of files) {
-      const imagePart = bufferToGenerativePart(file.buffer, file.mimetype);
+      const base64Data = file.buffer.toString('base64');
 
-      const result = await model.generateContent([INGREDIENT_PROMPT, imagePart]);
-      const responseText = result.response.text().trim();
+      const result = await ai.models.generateContent({
+        model: GEMINI_MODEL,
+        contents: [
+          {
+            parts: [
+              { text: INGREDIENT_PROMPT },
+              {
+                inlineData: {
+                  mimeType: file.mimetype,
+                  data: base64Data,
+                },
+              },
+            ],
+          },
+        ],
+      });
+
+      const responseText = result.text?.trim() ?? '';
 
       // Parse JSON từ response
       let ingredients = [];
       try {
-        // Loại bỏ markdown code block nếu model vẫn trả về
         const cleaned = responseText
           .replace(/```json\n?/g, '')
           .replace(/```\n?/g, '')
           .trim();
         ingredients = JSON.parse(cleaned);
 
-        // Validate cấu trúc
-        if (!Array.isArray(ingredients)) {
-          ingredients = [];
-        }
+        if (!Array.isArray(ingredients)) ingredients = [];
         ingredients = ingredients.filter(
           (item) =>
             item &&
@@ -109,9 +126,15 @@ async function recognizeIngredients(req, res) {
   } catch (err) {
     console.error('[recognizeIngredients]', err);
 
-    // Lỗi từ Gemini API
-    if (err.message?.includes('API_KEY') || err.message?.includes('GEMINI_API_KEY')) {
+    if (err.message?.includes('GEMINI_API_KEY')) {
       return res.status(500).json({ success: false, message: 'Cấu hình AI chưa đúng' });
+    }
+
+    if (err.status === 429 || err.message?.includes('429') || err.message?.includes('quota')) {
+      return res.status(429).json({
+        success: false,
+        message: 'AI đang quá tải, vui lòng thử lại sau vài giây',
+      });
     }
 
     return res.status(500).json({ success: false, message: 'Lỗi server khi xử lý ảnh' });
