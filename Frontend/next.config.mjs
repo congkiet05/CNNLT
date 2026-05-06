@@ -16,7 +16,7 @@ const nextConfig = {
       },
       {
         source: '/api/ingredients/:path*',
-        destination: 'http://localhost:3003/api/ingredients/:path*',
+        destination: 'http://localhost:3002/api/ingredients/:path*',
       },
     ];
   },
