@@ -55,6 +55,11 @@ services:
       PORT: 3002
       GEMINI_API_KEY: "${GEMINI_API_KEY}"
       JWT_SECRET: "${JWT_SECRET}"
+      DB_HOST: sqlserver
+      DB_PORT: 1433
+      DB_NAME: food_recipe_db
+      DB_USER: sa
+      DB_PASSWORD: "${DB_PASSWORD}"
       CORS_ORIGIN: "${CORS_ORIGIN:-*}"
     networks:
       - food_network

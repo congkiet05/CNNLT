@@ -22,7 +22,7 @@ import {
   Trash2
 } from "lucide-react"
 import { Input } from "@/components/ui/input"
-import { ingredientApi, type Ingredient as ApiIngredient } from "@/apis"
+import { ingredientApi, scanSessionApi, type Ingredient as ApiIngredient } from "@/apis"
 
 type ScanStep = "upload" | "analyzing" | "results" | "suggestions"
 
@@ -48,9 +48,12 @@ export default function ScanPage() {
   const [selectedImage, setSelectedImage] = useState<string | null>(null)
   const [selectedFiles, setSelectedFiles] = useState<File[]>([])
   const [ingredients, setIngredients] = useState<Ingredient[]>([])
+  // Lưu raw ingredients (dạng API) để gửi lên server khi chốt
+  const [rawIngredients, setRawIngredients] = useState<ApiIngredient[]>([])
   const [suggestedRecipes, setSuggestedRecipes] = useState<SuggestedRecipe[]>([])
   const [newIngredient, setNewIngredient] = useState("")
   const [scanError, setScanError] = useState<string | null>(null)
+  const [isSaving, setIsSaving] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const cameraInputRef = useRef<HTMLInputElement>(null)
 
@@ -119,12 +122,13 @@ export default function ScanPage() {
             return
           }
           // Map API response sang local Ingredient type
+          const apiIngredients = result.ingredients
+          setRawIngredients(apiIngredients)
           setIngredients(
-            result.ingredients.map((ing, idx) => ({
+            apiIngredients.map((ing, idx) => ({
               id: String(idx + 1),
               name: `${ing.ten_nguyen_lieu} (${ing.so_luong} ${ing.don_vi})`,
               confidence: 100,
-              raw: ing,
             }))
           )
           setStep("results")
@@ -137,7 +141,27 @@ export default function ScanPage() {
     }
   }, [])
 
-  const handleGetSuggestions = () => {
+  const handleGetSuggestions = async () => {
+    setIsSaving(true)
+    try {
+      // Chốt danh sách: lưu session vào DB (Req 2.9)
+      // Dùng rawIngredients nếu có, fallback sang parse từ tên hiển thị
+      const listToSave: ApiIngredient[] = rawIngredients.length > 0
+        ? rawIngredients
+        : ingredients.map(ing => ({
+            ten_nguyen_lieu: ing.name,
+            so_luong: 1,
+            don_vi: "phần",
+          }))
+
+      await scanSessionApi.save(listToSave)
+    } catch (err) {
+      // Lỗi lưu session không chặn luồng chính
+      console.warn("Không thể lưu scan session:", err)
+    } finally {
+      setIsSaving(false)
+    }
+
     setStep("suggestions")
     setSuggestedRecipes(mockRecipes)
   }
@@ -168,6 +192,7 @@ export default function ScanPage() {
     setSelectedImage(null)
     setSelectedFiles([])
     setIngredients([])
+    setRawIngredients([])
     setSuggestedRecipes([])
     setScanError(null)
   }
@@ -417,11 +442,20 @@ export default function ScanPage() {
                       className="w-full gap-2" 
                       size="lg"
                       onClick={handleGetSuggestions}
-                      disabled={ingredients.length === 0}
+                      disabled={ingredients.length === 0 || isSaving}
                     >
-                      <ChefHat className="h-5 w-5" />
-                      Gợi Ý Món Ăn
-                      <ArrowRight className="h-4 w-4" />
+                      {isSaving ? (
+                        <>
+                          <Loader2 className="h-5 w-5 animate-spin" />
+                          Đang lưu...
+                        </>
+                      ) : (
+                        <>
+                          <ChefHat className="h-5 w-5" />
+                          Gợi Ý Món Ăn
+                          <ArrowRight className="h-4 w-4" />
+                        </>
+                      )}
                     </Button>
                   </CardContent>
                 </Card>

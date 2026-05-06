@@ -40,6 +40,24 @@ export interface RecognizeResponse {
   message?: string;
 }
 
+export interface ScanSessionResponse {
+  success: boolean;
+  session_id?: number;
+  created_at?: string;
+  message?: string;
+}
+
+export interface ScanSession {
+  id: number;
+  status: string;
+  ingredient_list: Ingredient[];
+  recipes_result?: unknown;
+  video_results?: unknown;
+  dish_name?: string;
+  created_at: string;
+  updated_at: string;
+}
+
 // ─── Token Storage ────────────────────────────────────────────────────────────
 
 const TOKEN_KEY = 'access_token';
@@ -172,5 +190,45 @@ export const ingredientApi = {
       { method: 'POST', body: formData },
       true
     );
+  },
+};
+
+// ─── Scan Session API ─────────────────────────────────────────────────────────
+
+export const scanSessionApi = {
+  /**
+   * Lưu scan session sau khi người dùng chốt danh sách (Req 2.9)
+   */
+  async save(ingredientList: Ingredient[]): Promise<ScanSessionResponse> {
+    return apiFetch<ScanSessionResponse>(
+      '/ingredients/sessions',
+      {
+        method: 'POST',
+        body: JSON.stringify({ ingredient_list: ingredientList }),
+      },
+      true
+    );
+  },
+
+  /**
+   * Lấy lịch sử scan sessions (Req 5.2)
+   */
+  async getHistory(page = 1, limit = 10): Promise<{
+    success: boolean;
+    sessions: ScanSession[];
+    pagination: { page: number; limit: number; total: number; total_pages: number };
+  }> {
+    return apiFetch(
+      `/ingredients/sessions?page=${page}&limit=${limit}`,
+      {},
+      true
+    );
+  },
+
+  /**
+   * Lấy chi tiết một scan session (Req 5.3)
+   */
+  async getById(sessionId: number): Promise<{ success: boolean; session: ScanSession }> {
+    return apiFetch(`/ingredients/sessions/${sessionId}`, {}, true);
   },
 };

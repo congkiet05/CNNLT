@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 
 const { recognizeIngredients } = require('../controllers/ingredientController');
+const { createScanSession, getScanSessions, getScanSessionById } = require('../controllers/sessionController');
 const { authenticateToken } = require('../middleware/auth');
 const { upload, handleUploadError } = require('../middleware/upload');
 
@@ -17,5 +18,17 @@ router.post(
   },
   recognizeIngredients
 );
+
+// POST /api/ingredients/sessions
+// Lưu scan session sau khi người dùng chốt danh sách (Req 2.9)
+router.post('/sessions', authenticateToken, createScanSession);
+
+// GET /api/ingredients/sessions
+// Lấy lịch sử scan sessions của user (Req 5.2)
+router.get('/sessions', authenticateToken, getScanSessions);
+
+// GET /api/ingredients/sessions/:id
+// Lấy chi tiết một scan session (Req 5.3)
+router.get('/sessions/:id', authenticateToken, getScanSessionById);
 
 module.exports = router;
