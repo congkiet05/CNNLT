@@ -1,3 +1,2 @@
-// Static data, mock data, constants, enums
-// VD: export { mockRecipes } from './mockRecipes'
-//     export { RECIPE_CATEGORIES } from './constants'
+// Static data và constants cho toàn bộ ứng dụng
+// Sẽ được bổ sung khi implement recipe-service và video-service

@@ -1,4 +1,2 @@
-// Helper functions (có side effects)
-// VD: localStorage, sessionStorage, cookies
-// export { getLocalStorage, setLocalStorage } from './storage'
-// export { getCookie, setCookie } from './cookies'
+// Helper functions với side effects (localStorage, cookies, v.v.)
+// Sẽ được bổ sung khi cần

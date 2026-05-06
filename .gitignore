@@ -40,6 +40,9 @@ web_modules/
 .env
 .env.*
 !.env.example
+# Service-level .env files (chứa secrets thực tế)
+services/**/.env
+Frontend/.env.local
 
 # =================================================================
 # FRONTEND SPECIFIC (REACT, VITE, NEXT.JS, GATSBY)
