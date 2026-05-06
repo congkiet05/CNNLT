@@ -1,4 +1,176 @@
-// API service layer
-// Đặt axios instances, endpoint definitions và interceptors tại đây
-// VD: import axiosInstance from './axiosInstance'
-//     import { recipeApi } from './recipeApi'
+// ─── API Service Layer ────────────────────────────────────────────────────────
+// Tất cả HTTP calls đến backend đi qua đây.
+
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost/api';
+
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+export interface AuthUser {
+  id: number;
+  email: string;
+  display_name: string;
+  role: 'user' | 'admin';
+  avatar_url?: string;
+}
+
+export interface LoginResponse {
+  success: boolean;
+  access_token: string;
+  refresh_token: string;
+  user: AuthUser;
+  message?: string;
+}
+
+export interface RegisterResponse {
+  success: boolean;
+  message: string;
+  user?: AuthUser;
+}
+
+export interface Ingredient {
+  ten_nguyen_lieu: string;
+  so_luong: number;
+  don_vi: string;
+}
+
+export interface RecognizeResponse {
+  success: boolean;
+  ingredients: Ingredient[];
+  count: number;
+  message?: string;
+}
+
+// ─── Token Storage ────────────────────────────────────────────────────────────
+
+const TOKEN_KEY = 'access_token';
+const REFRESH_KEY = 'refresh_token';
+
+export const tokenStorage = {
+  getAccessToken: () => (typeof window !== 'undefined' ? localStorage.getItem(TOKEN_KEY) : null),
+  getRefreshToken: () => (typeof window !== 'undefined' ? localStorage.getItem(REFRESH_KEY) : null),
+  setTokens: (access: string, refresh: string) => {
+    localStorage.setItem(TOKEN_KEY, access);
+    localStorage.setItem(REFRESH_KEY, refresh);
+  },
+  clearTokens: () => {
+    localStorage.removeItem(TOKEN_KEY);
+    localStorage.removeItem(REFRESH_KEY);
+  },
+};
+
+// ─── Base Fetch ───────────────────────────────────────────────────────────────
+
+async function apiFetch<T>(
+  path: string,
+  options: RequestInit = {},
+  withAuth = false
+): Promise<T> {
+  const headers: Record<string, string> = {
+    ...(options.headers as Record<string, string>),
+  };
+
+  // Không set Content-Type cho FormData (browser tự set boundary)
+  if (!(options.body instanceof FormData)) {
+    headers['Content-Type'] = 'application/json';
+  }
+
+  if (withAuth) {
+    const token = tokenStorage.getAccessToken();
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+  }
+
+  const res = await fetch(`${API_BASE}${path}`, { ...options, headers });
+
+  // Nếu 401 và có refresh token, thử refresh rồi retry
+  if (res.status === 401 && withAuth) {
+    const refreshed = await authApi.refresh();
+    if (refreshed) {
+      headers['Authorization'] = `Bearer ${tokenStorage.getAccessToken()}`;
+      const retryRes = await fetch(`${API_BASE}${path}`, { ...options, headers });
+      return retryRes.json();
+    }
+    // Refresh thất bại → xóa token
+    tokenStorage.clearTokens();
+    throw new Error('Phiên đăng nhập hết hạn, vui lòng đăng nhập lại');
+  }
+
+  return res.json();
+}
+
+// ─── Auth API ─────────────────────────────────────────────────────────────────
+
+export const authApi = {
+  async register(email: string, password: string, display_name: string): Promise<RegisterResponse> {
+    return apiFetch<RegisterResponse>('/auth/register', {
+      method: 'POST',
+      body: JSON.stringify({ email, password, display_name }),
+    });
+  },
+
+  async login(email: string, password: string): Promise<LoginResponse> {
+    return apiFetch<LoginResponse>('/auth/login', {
+      method: 'POST',
+      body: JSON.stringify({ email, password }),
+    });
+  },
+
+  async refresh(): Promise<boolean> {
+    const refreshToken = tokenStorage.getRefreshToken();
+    if (!refreshToken) return false;
+
+    try {
+      const data = await apiFetch<{ success: boolean; access_token?: string }>(
+        '/auth/refresh',
+        {
+          method: 'POST',
+          body: JSON.stringify({ refresh_token: refreshToken }),
+        }
+      );
+      if (data.success && data.access_token) {
+        localStorage.setItem('access_token', data.access_token);
+        return true;
+      }
+      return false;
+    } catch {
+      return false;
+    }
+  },
+
+  async logout(): Promise<void> {
+    const refreshToken = tokenStorage.getRefreshToken();
+    try {
+      await apiFetch('/auth/logout', {
+        method: 'POST',
+        body: JSON.stringify({ refresh_token: refreshToken }),
+      });
+    } finally {
+      tokenStorage.clearTokens();
+    }
+  },
+
+  async getMe(): Promise<AuthUser | null> {
+    try {
+      const data = await apiFetch<{ success: boolean; user: AuthUser }>('/auth/me', {}, true);
+      return data.success ? data.user : null;
+    } catch {
+      return null;
+    }
+  },
+};
+
+// ─── Ingredient API ───────────────────────────────────────────────────────────
+
+export const ingredientApi = {
+  async recognize(files: File[]): Promise<RecognizeResponse> {
+    const formData = new FormData();
+    files.forEach((file) => formData.append('images', file));
+
+    return apiFetch<RecognizeResponse>(
+      '/ingredients/recognize',
+      { method: 'POST', body: formData },
+      true
+    );
+  },
+};

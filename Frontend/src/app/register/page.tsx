@@ -2,23 +2,51 @@
 
 import { useState } from "react"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Checkbox } from "@/components/ui/checkbox"
-import { ChefHat, Eye, EyeOff, Mail, Lock, User, ArrowLeft } from "lucide-react"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import { ChefHat, Eye, EyeOff, Mail, Lock, User, ArrowLeft, AlertCircle, CheckCircle } from "lucide-react"
+import { useAuth } from "@/contexts/AuthContext"
 
 export default function RegisterPage() {
+  const router = useRouter()
+  const { register } = useAuth()
+
+  const [name, setName] = useState("")
+  const [email, setEmail] = useState("")
+  const [password, setPassword] = useState("")
+  const [confirmPassword, setConfirmPassword] = useState("")
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [agreedToTerms, setAgreedToTerms] = useState(false)
+  const [error, setError] = useState("")
+  const [success, setSuccess] = useState(false)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    setError("")
+
+    if (password !== confirmPassword) {
+      setError("Mật khẩu xác nhận không khớp")
+      return
+    }
+
     setIsLoading(true)
-    setTimeout(() => setIsLoading(false), 1500)
+    const result = await register(email, password, name)
+    setIsLoading(false)
+
+    if (!result.success) {
+      setError(result.error ?? "Đăng ký thất bại")
+      return
+    }
+
+    setSuccess(true)
+    setTimeout(() => router.push("/login"), 2000)
   }
 
   return (
@@ -42,6 +70,20 @@ export default function RegisterPage() {
             </div>
           </CardHeader>
           <CardContent>
+            {success && (
+              <Alert className="mb-4 border-green-200 bg-green-50 text-green-800">
+                <CheckCircle className="h-4 w-4" />
+                <AlertDescription>Đăng ký thành công! Đang chuyển đến trang đăng nhập...</AlertDescription>
+              </Alert>
+            )}
+
+            {error && (
+              <Alert variant="destructive" className="mb-4">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            )}
+
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="name">Họ và tên</Label>
@@ -52,6 +94,8 @@ export default function RegisterPage() {
                     type="text"
                     placeholder="Nguyễn Văn A"
                     className="pl-10"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
                     required
                   />
                 </div>
@@ -66,6 +110,8 @@ export default function RegisterPage() {
                     type="email"
                     placeholder="email@example.com"
                     className="pl-10"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
                     required
                   />
                 </div>
@@ -80,6 +126,8 @@ export default function RegisterPage() {
                     type={showPassword ? "text" : "password"}
                     placeholder="••••••••"
                     className="pl-10 pr-10"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
                     required
                   />
                   <button
@@ -101,6 +149,8 @@ export default function RegisterPage() {
                     type={showConfirmPassword ? "text" : "password"}
                     placeholder="••••••••"
                     className="pl-10 pr-10"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
                     required
                   />
                   <button

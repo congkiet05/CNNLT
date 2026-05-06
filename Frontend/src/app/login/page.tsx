@@ -13,7 +13,7 @@ import { useAuth } from "@/contexts/AuthContext"
 
 export default function LoginPage() {
   const router = useRouter()
-  const { login } = useAuth()
+  const { login, user } = useAuth()
 
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
@@ -34,10 +34,11 @@ export default function LoginPage() {
       return
     }
 
-    // Redirect based on role (stored in context, re-read from localStorage)
-    const stored = localStorage.getItem("mock_auth_user")
-    const user = stored ? JSON.parse(stored) : null
-    if (user?.role === "admin") {
+    // Redirect based on role
+    const stored = result as { user?: { role?: string } }
+    // user is set in context after login; read from result or re-fetch
+    const me = await import("@/apis").then(m => m.authApi.getMe())
+    if (me?.role === "admin") {
       router.push("/admin")
     } else {
       router.push("/")
@@ -66,13 +67,6 @@ export default function LoginPage() {
             </div>
           </CardHeader>
           <CardContent>
-            {/* Mock accounts hint */}
-            <div className="mb-4 rounded-lg bg-muted p-3 text-xs text-muted-foreground space-y-1">
-              <p className="font-medium text-foreground">Tài khoản demo:</p>
-              <p>👤 User: <span className="font-mono">user@cooksmart.ai</span> / <span className="font-mono">123456</span></p>
-              <p>🛡️ Admin: <span className="font-mono">admin@cooksmart.ai</span> / <span className="font-mono">admin123</span></p>
-            </div>
-
             {error && (
               <Alert variant="destructive" className="mb-4">
                 <AlertCircle className="h-4 w-4" />

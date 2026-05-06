@@ -22,6 +22,7 @@ import {
   Trash2
 } from "lucide-react"
 import { Input } from "@/components/ui/input"
+import { ingredientApi, type Ingredient as ApiIngredient } from "@/apis"
 
 type ScanStep = "upload" | "analyzing" | "results" | "suggestions"
 
@@ -45,9 +46,11 @@ interface SuggestedRecipe {
 export default function ScanPage() {
   const [step, setStep] = useState<ScanStep>("upload")
   const [selectedImage, setSelectedImage] = useState<string | null>(null)
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([])
   const [ingredients, setIngredients] = useState<Ingredient[]>([])
   const [suggestedRecipes, setSuggestedRecipes] = useState<SuggestedRecipe[]>([])
   const [newIngredient, setNewIngredient] = useState("")
+  const [scanError, setScanError] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const cameraInputRef = useRef<HTMLInputElement>(null)
 
@@ -101,16 +104,34 @@ export default function ScanPage() {
   const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (file) {
+      setSelectedFiles([file])
       const reader = new FileReader()
-      reader.onload = (event) => {
+      reader.onload = async (event) => {
         setSelectedImage(event.target?.result as string)
         setStep("analyzing")
-        
-        // Simulate AI analysis
-        setTimeout(() => {
-          setIngredients(mockIngredients)
+        setScanError(null)
+
+        try {
+          const result = await ingredientApi.recognize([file])
+          if (!result.success || result.ingredients.length === 0) {
+            setScanError(result.message ?? "Không nhận diện được nguyên liệu. Vui lòng thử ảnh khác.")
+            setStep("upload")
+            return
+          }
+          // Map API response sang local Ingredient type
+          setIngredients(
+            result.ingredients.map((ing, idx) => ({
+              id: String(idx + 1),
+              name: `${ing.ten_nguyen_lieu} (${ing.so_luong} ${ing.don_vi})`,
+              confidence: 100,
+              raw: ing,
+            }))
+          )
           setStep("results")
-        }, 2500)
+        } catch (err: any) {
+          setScanError(err.message ?? "Lỗi kết nối server")
+          setStep("upload")
+        }
       }
       reader.readAsDataURL(file)
     }
@@ -145,8 +166,10 @@ export default function ScanPage() {
   const resetScan = () => {
     setStep("upload")
     setSelectedImage(null)
+    setSelectedFiles([])
     setIngredients([])
     setSuggestedRecipes([])
+    setScanError(null)
   }
 
   return (
@@ -190,6 +213,11 @@ export default function ScanPage() {
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6">
+                  {scanError && (
+                    <div className="rounded-lg bg-destructive/10 p-3 text-sm text-destructive">
+                      {scanError}
+                    </div>
+                  )}
                   <div className="flex flex-col items-center justify-center gap-4 rounded-xl bg-muted/50 p-12">
                     <div className="flex h-20 w-20 items-center justify-center rounded-full bg-primary/10">
                       <ImageIcon className="h-10 w-10 text-primary" />
