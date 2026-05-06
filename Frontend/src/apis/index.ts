@@ -1,7 +1,7 @@
 // ─── API Service Layer ────────────────────────────────────────────────────────
 // Tất cả HTTP calls đến backend đi qua đây.
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost/api';
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || '/api';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -111,13 +111,23 @@ async function apiFetch<T>(
     if (refreshed) {
       headers['Authorization'] = `Bearer ${tokenStorage.getAccessToken()}`;
       const retryRes = await fetch(`${API_BASE}${path}`, { ...options, headers });
-      return retryRes.json();
+      return safeJson(retryRes);
     }
-    // Refresh thất bại → xóa token
     tokenStorage.clearTokens();
     throw new Error('Phiên đăng nhập hết hạn, vui lòng đăng nhập lại');
   }
 
+  return safeJson(res);
+}
+
+// Parse JSON an toàn — nếu response không phải JSON thì throw lỗi rõ ràng
+async function safeJson<T>(res: Response): Promise<T> {
+  const contentType = res.headers.get('content-type') ?? '';
+  if (!contentType.includes('application/json')) {
+    const text = await res.text();
+    console.error('[apiFetch] Non-JSON response:', res.status, text.substring(0, 200));
+    throw new Error(`Lỗi kết nối đến server (${res.status})`);
+  }
   return res.json();
 }
 
