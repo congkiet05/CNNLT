@@ -33,6 +33,7 @@ interface Ingredient {
   isEditing?: boolean
 }
 
+// TODO: Thay bằng type từ recipe-service khi implement Requirement 3
 interface SuggestedRecipe {
   id: number
   name: string
@@ -57,19 +58,12 @@ export default function ScanPage() {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const cameraInputRef = useRef<HTMLInputElement>(null)
 
-  const mockIngredients: Ingredient[] = [
-    { id: "1", name: "Trứng gà", confidence: 98 },
-    { id: "2", name: "Cà chua", confidence: 95 },
-    { id: "3", name: "Hành lá", confidence: 92 },
-    { id: "4", name: "Thịt bò", confidence: 88 },
-    { id: "5", name: "Tỏi", confidence: 85 },
-  ]
-
-  const mockRecipes: SuggestedRecipe[] = [
+  // Placeholder recipes — sẽ thay bằng recipe-service API (Requirement 3)
+  const PLACEHOLDER_RECIPES: SuggestedRecipe[] = [
     {
       id: 1,
       name: "Trứng Chiên Cà Chua",
-      image: "https://images.unsplash.com/photo-1482049016gy-a0e5a0e8b63e?w=400&h=300&fit=crop",
+      image: "https://images.unsplash.com/photo-1482049016688-2d3e1b311543?w=400&h=300&fit=crop",
       matchPercentage: 100,
       missingIngredients: [],
       time: "15 phút",
@@ -93,15 +87,6 @@ export default function ScanPage() {
       time: "25 phút",
       difficulty: "Dễ"
     },
-    {
-      id: 4,
-      name: "Phở Bò Tái",
-      image: "https://images.unsplash.com/photo-1582878826629-29b7ad1cdc43?w=400&h=300&fit=crop",
-      matchPercentage: 70,
-      missingIngredients: ["Bánh phở", "Nước dùng xương"],
-      time: "45 phút",
-      difficulty: "Trung bình"
-    }
   ]
 
   const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
@@ -163,7 +148,7 @@ export default function ScanPage() {
     }
 
     setStep("suggestions")
-    setSuggestedRecipes(mockRecipes)
+    setSuggestedRecipes(PLACEHOLDER_RECIPES)
   }
 
   const handleRemoveIngredient = (id: string) => {

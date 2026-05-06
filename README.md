@@ -7,116 +7,90 @@ Hệ thống gợi ý món ăn từ ảnh nguyên liệu sử dụng Gemini AI.
 ```
 Frontend (Next.js :3000)
     ↓
-API Gateway (Nginx :80)
-    ├── /api/auth/*       → auth-service (:3001)
-    └── /api/ingredients/* → ingredient-service (:3002)
+API Gateway (Nginx :80)  ← Docker only
+    ├── /api/auth/*         → auth-service (:3001)
+    └── /api/ingredients/*  → ingredient-service (:3002)
          ↓
     SQL Server (:1433)
 ```
 
-## Cài đặt & Chạy
+## Cài đặt
 
 ### 1. Cấu hình biến môi trường
 
-Sao chép và chỉnh sửa file `.env`:
-
 ```bash
-cp .env .env.local
+cp .env.example .env
 ```
 
-Cập nhật các giá trị bắt buộc:
-- `DB_PASSWORD` — mật khẩu SQL Server (tối thiểu 8 ký tự, có chữ hoa, số, ký tự đặc biệt)
-- `JWT_SECRET` — chuỗi ngẫu nhiên dài ≥32 ký tự
+Điền các giá trị bắt buộc:
+- `DB_PASSWORD` — mật khẩu SQL Server
+- `JWT_SECRET` — chuỗi ngẫu nhiên ≥32 ký tự
 - `GEMINI_API_KEY` — lấy tại https://aistudio.google.com/app/apikey
 
-### 2. Chạy với Docker Compose
+### 2. Khởi tạo database
+
+Chạy `database/init.sql` trên SQL Server instance của bạn.
+
+Tài khoản mặc định sau khi seed:
+- Admin: `admin@cooksmart.ai` / `Admin@123`
+- User: `user@cooksmart.ai` / `User@123`
+
+### 3. Chạy local (không Docker)
+
+Tạo `.env` trong mỗi service folder, sau đó:
+
+```bash
+# Terminal 1
+cd services/auth-service && npm install && node src/index.js
+
+# Terminal 2
+cd services/ingredient-service && npm install && node src/index.js
+
+# Terminal 3
+cd Frontend && pnpm install && pnpm dev
+```
+
+Tạo `Frontend/.env.local`:
+```
+NEXT_PUBLIC_API_URL=/api
+```
+
+### 4. Chạy với Docker Compose
 
 ```bash
 docker-compose up --build
 ```
 
-Lần đầu SQL Server khởi động mất ~30 giây. Sau đó chạy schema:
-
+Sau đó chạy schema:
 ```bash
-docker exec -it food_sqlserver /opt/mssql-tools/bin/sqlcmd \
-  -S localhost -U sa -P "$DB_PASSWORD" \
-  -i /docker-entrypoint-initdb.d/init.sql
+docker exec -it food_sqlserver /opt/mssql-tools18/bin/sqlcmd \
+  -S localhost -U sa -P "$DB_PASSWORD" -C -i /tmp/init.sql
 ```
-
-### 3. Truy cập
-
-- Frontend: http://localhost:3000
-- API Gateway: http://localhost/api
-- Auth Service (direct): http://localhost:3001
-- Ingredient Service (direct): http://localhost:3002
 
 ## API Endpoints
 
-### Auth Service
+### Auth Service (:3001)
 
 | Method | Endpoint | Mô tả |
 |--------|----------|-------|
-| POST | `/api/auth/register` | Đăng ký tài khoản |
+| POST | `/api/auth/register` | Đăng ký |
 | POST | `/api/auth/login` | Đăng nhập |
-| POST | `/api/auth/refresh` | Làm mới access token |
+| POST | `/api/auth/refresh` | Làm mới token |
 | POST | `/api/auth/logout` | Đăng xuất |
-| GET  | `/api/auth/me` | Thông tin user hiện tại |
+| GET  | `/api/auth/me` | Thông tin user |
 
-**Register body:**
-```json
-{
-  "email": "user@example.com",
-  "password": "password123",
-  "display_name": "Nguyễn Văn A"
-}
-```
-
-**Login response:**
-```json
-{
-  "success": true,
-  "access_token": "eyJ...",
-  "refresh_token": "uuid-v4",
-  "user": { "id": 1, "email": "...", "display_name": "...", "role": "user" }
-}
-```
-
-### Ingredient Service
+### Ingredient Service (:3002)
 
 | Method | Endpoint | Mô tả |
 |--------|----------|-------|
 | POST | `/api/ingredients/recognize` | Nhận diện nguyên liệu từ ảnh |
+| POST | `/api/ingredients/sessions` | Lưu scan session |
+| GET  | `/api/ingredients/sessions` | Lịch sử scan |
+| GET  | `/api/ingredients/sessions/:id` | Chi tiết session |
 
-**Request:** `multipart/form-data`, field `images[]` (1-3 files, JPEG/PNG/WEBP, ≤10MB mỗi file)
+## Tài khoản test
 
-**Response:**
-```json
-{
-  "success": true,
-  "ingredients": [
-    { "ten_nguyen_lieu": "Cà chua", "so_luong": 2, "don_vi": "quả" }
-  ],
-  "count": 1
-}
-```
-
-## Phát triển local (không Docker)
-
-```bash
-# Auth Service
-cd services/auth-service
-npm install
-npm run dev
-
-# Ingredient Service
-cd services/ingredient-service
-npm install
-npm run dev
-
-# Frontend
-cd Frontend
-pnpm install
-pnpm dev
-```
-
-Tạo file `.env` trong mỗi service folder với các biến tương ứng.
+| Email | Mật khẩu | Vai trò |
+|-------|----------|---------|
+| admin@cooksmart.ai | Admin@123 | Admin |
+| user@cooksmart.ai | User@123 | User |
