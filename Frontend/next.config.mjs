@@ -18,6 +18,10 @@ const nextConfig = {
         source: '/api/ingredients/:path*',
         destination: 'http://localhost:3002/api/ingredients/:path*',
       },
+      {
+        source: '/api/recipes/:path*',
+        destination: 'http://localhost:3003/api/recipes/:path*',
+      },
     ];
   },
 }

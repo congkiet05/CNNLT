@@ -65,6 +65,28 @@ services:
       - food_network
     restart: unless-stopped
 
+  # ─── Recipe Service ──────────────────────────────────────
+  recipe-service:
+    build:
+      context: ./services/recipe-service
+      dockerfile: Dockerfile
+    container_name: food_recipe_service
+    environment:
+      PORT: 3003
+      DB_HOST: sqlserver
+      DB_PORT: 1433
+      DB_NAME: food_recipe_db
+      DB_USER: sa
+      DB_PASSWORD: "${DB_PASSWORD}"
+      JWT_SECRET: "${JWT_SECRET}"
+      CORS_ORIGIN: "${CORS_ORIGIN:-*}"
+    depends_on:
+      sqlserver:
+        condition: service_healthy
+    networks:
+      - food_network
+    restart: unless-stopped
+
   # ─── API Gateway (Nginx) ──────────────────────────────────
   gateway:
     build:
@@ -76,6 +98,7 @@ services:
     depends_on:
       - auth-service
       - ingredient-service
+      - recipe-service
     networks:
       - food_network
     restart: unless-stopped
