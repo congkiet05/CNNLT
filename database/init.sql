@@ -31,7 +31,8 @@ BEGIN
         avatar_url      NVARCHAR(500)       NULL,
         google_id       NVARCHAR(255)       NULL,           -- Google OAuth sub (không UNIQUE vì nhiều NULL)
         created_at      DATETIME2           NOT NULL DEFAULT GETDATE(),
-        updated_at      DATETIME2           NOT NULL DEFAULT GETDATE()
+        updated_at      DATETIME2           NOT NULL DEFAULT GETDATE(),
+        image_url NVARCHAR(500) NULL
     );
 END
 GO
@@ -98,7 +99,8 @@ BEGIN
         source_name     NVARCHAR(100)       NULL,   -- "Cookpad" | "Savoury Days"
         is_active       BIT                 NOT NULL DEFAULT 1,  -- Admin có thể ẩn công thức
         created_at      DATETIME2           NOT NULL DEFAULT GETDATE(),
-        updated_at      DATETIME2           NOT NULL DEFAULT GETDATE()
+        updated_at      DATETIME2           NOT NULL DEFAULT GETDATE(),
+        image_url NVARCHAR(500) NULL;
     );
 END
 GO

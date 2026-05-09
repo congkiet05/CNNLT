@@ -207,6 +207,82 @@ export const ingredientApi = {
   },
 };
 
+// ─── Recipe API ───────────────────────────────────────────────
+
+export interface SuggestedRecipe {
+  id: number;
+  name: string;
+  cook_time: string;
+  difficulty: string;
+  matchPercentage: number;
+  missingIngredients: string[];
+  ingredients: Ingredient[];
+  steps: { buoc: number; mo_ta: string }[];
+  image_url?: string;
+}
+
+export interface SuggestResponse {
+  success: boolean;
+  recipes: SuggestedRecipe[];
+  total: number;
+  note?: string;
+}
+
+export interface RecipeListResponse {
+  success: boolean;
+  recipes: {
+    id: number;
+    name: string;
+    cook_time: string;
+    difficulty: string;
+    ingredients_text: string;
+    created_at: string;
+  }[];
+  pagination: { page: number; limit: number; total: number; total_pages: number };
+}
+
+export const recipeApi = {
+  /**
+   * Gợi ý công thức dựa trên danh sách nguyên liệu (Req 3)
+   * @param ingredients Mảng tên nguyên liệu
+   * @param limit Số kết quả tối đa (default 12)
+   */
+  async suggest(ingredients: string[], limit = 12): Promise<SuggestResponse> {
+    const query = ingredients.map((i) => encodeURIComponent(i)).join(',');
+    return apiFetch<SuggestResponse>(
+      `/recipes/suggest?ingredients=${query}&limit=${limit}`,
+      {},
+      true
+    );
+  },
+
+  /**
+   * Lấy danh sách công thức có phân trang
+   */
+  async list(page = 1, limit = 12, search = ''): Promise<RecipeListResponse> {
+    const params = new URLSearchParams({
+      page: String(page),
+      limit: String(limit),
+      ...(search ? { search } : {}),
+    });
+    return apiFetch<RecipeListResponse>(`/recipes?${params}`);
+  },
+
+  /**
+   * Lấy video YouTube cho một công thức
+   */
+  async getVideos(id: number): Promise<{ success: boolean; videos: { video_id: string; title: string; thumbnail: string; channel: string; embed_url: string }[]; recipe_name: string }> {
+    return apiFetch(`/recipes/${id}/videos`);
+  },
+
+  /**
+   * Lấy chi tiết một công thức
+   */
+  async getById(id: number): Promise<{ success: boolean; recipe: SuggestedRecipe }> {
+    return apiFetch(`/recipes/${id}`);
+  },
+};
+
 // ─── Scan Session API ─────────────────────────────────────────────────────────
 
 export const scanSessionApi = {

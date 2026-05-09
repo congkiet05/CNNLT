@@ -22,7 +22,7 @@ import {
   Trash2
 } from "lucide-react"
 import { Input } from "@/components/ui/input"
-import { ingredientApi, scanSessionApi, type Ingredient as ApiIngredient } from "@/apis"
+import { ingredientApi, scanSessionApi, recipeApi, type Ingredient as ApiIngredient, type SuggestedRecipe as ApiSuggestedRecipe } from "@/apis"
 
 type ScanStep = "upload" | "analyzing" | "results" | "suggestions"
 
@@ -42,14 +42,11 @@ interface SuggestedRecipe {
   missingIngredients: string[]
   time: string
   difficulty: string
-}
-
-export default function ScanPage() {
+}export default function ScanPage() {
   const [step, setStep] = useState<ScanStep>("upload")
   const [selectedImage, setSelectedImage] = useState<string | null>(null)
   const [selectedFiles, setSelectedFiles] = useState<File[]>([])
   const [ingredients, setIngredients] = useState<Ingredient[]>([])
-  // Lưu raw ingredients (dạng API) để gửi lên server khi chốt
   const [rawIngredients, setRawIngredients] = useState<ApiIngredient[]>([])
   const [suggestedRecipes, setSuggestedRecipes] = useState<SuggestedRecipe[]>([])
   const [newIngredient, setNewIngredient] = useState("")
@@ -58,36 +55,22 @@ export default function ScanPage() {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const cameraInputRef = useRef<HTMLInputElement>(null)
 
-  // Placeholder recipes — sẽ thay bằng recipe-service API (Requirement 3)
-  const PLACEHOLDER_RECIPES: SuggestedRecipe[] = [
-    {
-      id: 1,
-      name: "Trứng Chiên Cà Chua",
-      image: "https://images.unsplash.com/photo-1482049016688-2d3e1b311543?w=400&h=300&fit=crop",
-      matchPercentage: 100,
-      missingIngredients: [],
-      time: "15 phút",
-      difficulty: "Dễ"
-    },
-    {
-      id: 2,
-      name: "Bò Xào Hành Tỏi",
-      image: "https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=400&h=300&fit=crop",
-      matchPercentage: 95,
-      missingIngredients: ["Ớt"],
-      time: "20 phút",
-      difficulty: "Dễ"
-    },
-    {
-      id: 3,
-      name: "Canh Cà Chua Trứng",
-      image: "https://images.unsplash.com/photo-1547592166-23ac45744acd?w=400&h=300&fit=crop",
-      matchPercentage: 90,
-      missingIngredients: ["Rau mùi"],
-      time: "25 phút",
-      difficulty: "Dễ"
-    },
-  ]
+  // Restore state từ sessionStorage khi quay lại từ trang chi tiết
+  useState(() => {
+    if (typeof window === "undefined") return
+    try {
+      const saved = sessionStorage.getItem("scan_suggestions")
+      if (saved) {
+        const { recipes, ingredientList } = JSON.parse(saved)
+        if (recipes?.length > 0) {
+          setSuggestedRecipes(recipes)
+          setIngredients(ingredientList || [])
+          setStep("suggestions")
+        }
+      }
+    } catch {}
+  })
+
 
   const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -130,7 +113,6 @@ export default function ScanPage() {
     setIsSaving(true)
     try {
       // Chốt danh sách: lưu session vào DB (Req 2.9)
-      // Dùng rawIngredients nếu có, fallback sang parse từ tên hiển thị
       const listToSave: ApiIngredient[] = rawIngredients.length > 0
         ? rawIngredients
         : ingredients.map(ing => ({
@@ -140,15 +122,56 @@ export default function ScanPage() {
           }))
 
       await scanSessionApi.save(listToSave)
+
+      // Gọi recipe-service để gợi ý món ăn (Req 3)
+      const ingredientNames = listToSave.map(i => i.ten_nguyen_lieu)
+      const result = await recipeApi.suggest(ingredientNames, 12)
+
+      if (result.success && result.recipes.length > 0) {
+        // Map sang local SuggestedRecipe type — dùng image_url từ DB
+        const getFallbackImage = (name: string, id: number): string => {
+          const n = name.toLowerCase()
+          let topic = "food"
+          if (n.includes("tôm") || n.includes("cua") || n.includes("mực")) topic = "seafood"
+          else if (n.includes("bò")) topic = "beef"
+          else if (n.includes("gà")) topic = "chicken"
+          else if (n.includes("heo") || n.includes("lợn")) topic = "pork"
+          else if (n.includes("cá")) topic = "fish"
+          else if (n.includes("canh") || n.includes("súp")) topic = "soup"
+          else if (n.includes("bún") || n.includes("phở") || n.includes("mì")) topic = "noodles"
+          else if (n.includes("cơm")) topic = "rice"
+          else if (n.includes("rau") || n.includes("gỏi")) topic = "salad"
+          else if (n.includes("trứng")) topic = "eggs"
+          return `https://picsum.photos/seed/${topic}-${id}/400/300`
+        }
+        const mapped = result.recipes.map((r: ApiSuggestedRecipe) => ({
+            id: r.id,
+            name: r.name,
+            image: r.image_url || getFallbackImage(r.name, r.id),
+            matchPercentage: r.matchPercentage,
+            missingIngredients: r.missingIngredients,
+            time: r.cook_time || "30 phút",
+            difficulty: r.difficulty || "Dễ",
+          }))
+        setSuggestedRecipes(mapped)
+        // Lưu vào sessionStorage để restore khi quay lại từ trang chi tiết
+        try {
+          sessionStorage.setItem("scan_suggestions", JSON.stringify({
+            recipes: mapped,
+            ingredientList: ingredients,
+          }))
+        } catch {}
+      } else {
+        setSuggestedRecipes([])
+      }
     } catch (err) {
-      // Lỗi lưu session không chặn luồng chính
-      console.warn("Không thể lưu scan session:", err)
+      console.warn("Không thể lấy gợi ý món ăn:", err)
+      setSuggestedRecipes([])
     } finally {
       setIsSaving(false)
     }
 
     setStep("suggestions")
-    setSuggestedRecipes(PLACEHOLDER_RECIPES)
   }
 
   const handleRemoveIngredient = (id: string) => {
@@ -180,6 +203,7 @@ export default function ScanPage() {
     setRawIngredients([])
     setSuggestedRecipes([])
     setScanError(null)
+    try { sessionStorage.removeItem("scan_suggestions") } catch {}
   }
 
   return (
