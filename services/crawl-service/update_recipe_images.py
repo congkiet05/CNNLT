@@ -97,20 +97,52 @@ def search_image_duckduckgo(query: str) -> str | None:
         print(f"  [WARN] DuckDuckGo search lỗi: {e}")
         return None
 
+def search_image_bing(query: str) -> str | None:
+    """Tìm ảnh từ Bing Images — Đã sửa lỗi bốc nhầm script."""
+    try:
+        url = f"https://www.bing.com/images/search"
+        # Thêm filter để tìm ảnh kích thước trung bình/lớn cho đẹp
+        params = {"q": query, "qft": "+filterui:imagesize-medium", "form": "IRFLTR", "first": "1"}
+        resp = requests.get(url, params=params, headers=HEADERS, timeout=12)
+        
+        # Regex này an toàn hơn, tập trung vào cấu trúc JSON m= của Bing
+        matches = re.findall(r'm="({.*?})"', resp.text)
+        for match in matches:
+            try:
+                # Giải mã HTML entities (như &quot;) trước khi load JSON
+                import html
+                clean_json = html.unescape(match)
+                data = json.loads(clean_json)
+                img_url = data.get("murl")
+                
+                # Kiểm tra xem có phải link ảnh thật không
+                if img_url and img_url.startswith("http") and any(ext in img_url.lower() for ext in ['.jpg', '.jpeg', '.png', '.webp']):
+                    return img_url
+            except:
+                continue
+                
+    except Exception as e:
+        print(f"  [WARN] Bing search lỗi: {e}")
+    return None
 
 def search_image_for_recipe(name: str) -> str | None:
-    """Tìm ảnh cho tên món ăn Việt Nam."""
-    # Thử với tên tiếng Việt trước
+    """Tìm ảnh cho tên món ăn Việt Nam — thử nhiều query."""
     queries = [
-        f"{name} món ăn Việt Nam",
+        f"{name} món ăn",
         f"{name} Vietnamese food",
         f"{name} recipe",
     ]
     for query in queries:
+        # Thử Bing trước
+        url = search_image_bing(query)
+        if url:
+            return url
+        time.sleep(0.8)
+        # Fallback DuckDuckGo
         url = search_image_duckduckgo(query)
         if url:
             return url
-        time.sleep(0.5)
+        time.sleep(0.8)
     return None
 
 
@@ -168,7 +200,7 @@ def main():
             failed += 1
 
         # Delay để tránh bị block
-        time.sleep(1.5)
+        time.sleep(2)
 
     print(f"\n{'='*50}")
     print(f"[DONE] Updated: {updated} | Failed: {failed}")

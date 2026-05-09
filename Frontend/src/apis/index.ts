@@ -269,6 +269,13 @@ export const recipeApi = {
   },
 
   /**
+   * Lấy video YouTube cho một công thức
+   */
+  async getVideos(id: number): Promise<{ success: boolean; videos: { video_id: string; title: string; thumbnail: string; channel: string; embed_url: string }[]; recipe_name: string }> {
+    return apiFetch(`/recipes/${id}/videos`);
+  },
+
+  /**
    * Lấy chi tiết một công thức
    */
   async getById(id: number): Promise<{ success: boolean; recipe: SuggestedRecipe }> {

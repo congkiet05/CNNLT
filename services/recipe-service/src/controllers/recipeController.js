@@ -1,5 +1,30 @@
 const { getPool, sql } = require('../config/db');
 
+// ─── YouTube helper ───────────────────────────────────────────────────────────
+
+async function searchYouTubeVideos(recipeName) {
+  const apiKey = process.env.YOUTUBE_API_KEY;
+  if (!apiKey) return [];
+
+  try {
+    const query = encodeURIComponent(`${recipeName} cách làm nấu ăn`);
+    const url = `https://www.googleapis.com/youtube/v3/search?part=snippet&q=${query}&type=video&maxResults=3&key=${apiKey}&relevanceLanguage=vi`;
+    const res = await fetch(url);
+    if (!res.ok) return [];
+    const data = await res.json();
+    return (data.items || []).map(item => ({
+      video_id: item.id.videoId,
+      title: item.snippet.title,
+      thumbnail: item.snippet.thumbnails?.medium?.url || item.snippet.thumbnails?.default?.url,
+      channel: item.snippet.channelTitle,
+      embed_url: `https://www.youtube.com/embed/${item.id.videoId}`,
+    }));
+  } catch (err) {
+    console.error('[searchYouTubeVideos]', err.message);
+    return [];
+  }
+}
+
 /**
  * Tính % phù hợp giữa nguyên liệu user có và nguyên liệu công thức cần.
  * Dùng so khớp tên (lowercase, loại bỏ khoảng trắng thừa).
@@ -105,13 +130,13 @@ async function suggestRecipes(req, res) {
     const rows = result.recordset;
 
     if (rows.length === 0) {
-      // Fallback: trả về công thức mới nhất nếu không tìm thấy khớp
+      // Fallback: trả về công thức random nếu không tìm thấy khớp
       const fallback = await pool.request().query(`
         SELECT TOP ${limit}
           id, name, ingredients, steps, cook_time, difficulty, image_url
         FROM recipes
         WHERE is_active = 1
-        ORDER BY created_at DESC
+        ORDER BY NEWID()
       `);
 
       const fallbackRecipes = fallback.recordset.map((row) => {
@@ -136,7 +161,7 @@ async function suggestRecipes(req, res) {
         success: true,
         recipes: fallbackRecipes,
         total: fallbackRecipes.length,
-        note: 'Không tìm thấy công thức khớp, hiển thị công thức mới nhất',
+        note: 'Không tìm thấy công thức khớp với nguyên liệu, hiển thị gợi ý ngẫu nhiên',
       });
     }
 
@@ -259,7 +284,7 @@ async function getRecipeById(req, res) {
       .input('id', sql.Int, id)
       .query(`
         SELECT id, name, ingredients, steps, cook_time, difficulty,
-               source_url, source_name, created_at
+               source_url, source_name, image_url, created_at
         FROM recipes
         WHERE id = @id AND is_active = 1
       `);
@@ -279,4 +304,30 @@ async function getRecipeById(req, res) {
   }
 }
 
-module.exports = { suggestRecipes, getRecipes, getRecipeById };
+async function getRecipeVideos(req, res) {
+  try {
+    const id = parseInt(req.params.id);
+    if (!id || isNaN(id)) {
+      return res.status(400).json({ success: false, message: 'ID không hợp lệ' });
+    }
+
+    const pool = await getPool();
+    const result = await pool.request()
+      .input('id', sql.Int, id)
+      .query('SELECT name FROM recipes WHERE id = @id AND is_active = 1');
+
+    if (result.recordset.length === 0) {
+      return res.status(404).json({ success: false, message: 'Không tìm thấy công thức' });
+    }
+
+    const recipeName = result.recordset[0].name;
+    const videos = await searchYouTubeVideos(recipeName);
+
+    return res.status(200).json({ success: true, videos, recipe_name: recipeName });
+  } catch (err) {
+    console.error('[getRecipeVideos]', err);
+    return res.status(500).json({ success: false, message: 'Lỗi server' });
+  }
+}
+
+module.exports = { suggestRecipes, getRecipes, getRecipeById, getRecipeVideos };

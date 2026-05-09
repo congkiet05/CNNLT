@@ -47,7 +47,6 @@ interface SuggestedRecipe {
   const [selectedImage, setSelectedImage] = useState<string | null>(null)
   const [selectedFiles, setSelectedFiles] = useState<File[]>([])
   const [ingredients, setIngredients] = useState<Ingredient[]>([])
-  // Lưu raw ingredients (dạng API) để gửi lên server khi chốt
   const [rawIngredients, setRawIngredients] = useState<ApiIngredient[]>([])
   const [suggestedRecipes, setSuggestedRecipes] = useState<SuggestedRecipe[]>([])
   const [newIngredient, setNewIngredient] = useState("")
@@ -55,6 +54,22 @@ interface SuggestedRecipe {
   const [isSaving, setIsSaving] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const cameraInputRef = useRef<HTMLInputElement>(null)
+
+  // Restore state từ sessionStorage khi quay lại từ trang chi tiết
+  useState(() => {
+    if (typeof window === "undefined") return
+    try {
+      const saved = sessionStorage.getItem("scan_suggestions")
+      if (saved) {
+        const { recipes, ingredientList } = JSON.parse(saved)
+        if (recipes?.length > 0) {
+          setSuggestedRecipes(recipes)
+          setIngredients(ingredientList || [])
+          setStep("suggestions")
+        }
+      }
+    } catch {}
+  })
 
 
   const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
@@ -129,8 +144,7 @@ interface SuggestedRecipe {
           else if (n.includes("trứng")) topic = "eggs"
           return `https://picsum.photos/seed/${topic}-${id}/400/300`
         }
-        setSuggestedRecipes(
-          result.recipes.map((r: ApiSuggestedRecipe) => ({
+        const mapped = result.recipes.map((r: ApiSuggestedRecipe) => ({
             id: r.id,
             name: r.name,
             image: r.image_url || getFallbackImage(r.name, r.id),
@@ -139,7 +153,14 @@ interface SuggestedRecipe {
             time: r.cook_time || "30 phút",
             difficulty: r.difficulty || "Dễ",
           }))
-        )
+        setSuggestedRecipes(mapped)
+        // Lưu vào sessionStorage để restore khi quay lại từ trang chi tiết
+        try {
+          sessionStorage.setItem("scan_suggestions", JSON.stringify({
+            recipes: mapped,
+            ingredientList: ingredients,
+          }))
+        } catch {}
       } else {
         setSuggestedRecipes([])
       }
@@ -182,6 +203,7 @@ interface SuggestedRecipe {
     setRawIngredients([])
     setSuggestedRecipes([])
     setScanError(null)
+    try { sessionStorage.removeItem("scan_suggestions") } catch {}
   }
 
   return (

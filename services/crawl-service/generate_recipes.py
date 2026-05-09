@@ -168,15 +168,18 @@ def insert_recipes(conn, recipes: list[dict], source_name: str = "Gemini Generat
                 skipped += 1
                 continue
 
+            # Dùng tên món làm source_url để tránh UNIQUE NULL conflict
+            source_url = f"generated://{name.lower().replace(' ', '-')}"
+
             cursor.execute(
                 """
                 INSERT INTO recipes
                     (name, ingredients, steps, cook_time, difficulty,
-                     ingredients_text, source_name, image_url, is_active)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1)
+                     ingredients_text, source_name, image_url, is_active, source_url)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, ?)
                 """,
                 (name, ingredients, steps, cook_time, difficulty,
-                 ingredients_text, source_name, image_url),
+                 ingredients_text, source_name, image_url, source_url),
             )
             inserted += 1
 
