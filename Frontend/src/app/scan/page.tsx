@@ -113,9 +113,8 @@ interface SuggestedRecipe {
       const result = await recipeApi.suggest(ingredientNames, 12)
 
       if (result.success && result.recipes.length > 0) {
-        // Map sang local SuggestedRecipe type
-        // Tạo ảnh theo category từ tên món (picsum với seed ổn định)
-        const getImageUrl = (name: string, id: number): string => {
+        // Map sang local SuggestedRecipe type — dùng image_url từ DB
+        const getFallbackImage = (name: string, id: number): string => {
           const n = name.toLowerCase()
           let topic = "food"
           if (n.includes("tôm") || n.includes("cua") || n.includes("mực")) topic = "seafood"
@@ -134,7 +133,7 @@ interface SuggestedRecipe {
           result.recipes.map((r: ApiSuggestedRecipe) => ({
             id: r.id,
             name: r.name,
-            image: getImageUrl(r.name, r.id),
+            image: r.image_url || getFallbackImage(r.name, r.id),
             matchPercentage: r.matchPercentage,
             missingIngredients: r.missingIngredients,
             time: r.cook_time || "30 phút",

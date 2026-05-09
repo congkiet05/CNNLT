@@ -6,6 +6,16 @@ const nextConfig = {
   },
   images: {
     unoptimized: true,
+    domains: [
+      'i.ytimg.com',
+      'lamviet.net',
+      'media.doanhnghiepvn.vn',
+      'vinmec-prod.s3.amazonaws.com',
+      'bepmina.vn',
+      'image-us.eva.vn',
+      'cooponline.vn',
+      'picsum.photos',
+    ],
   },
   // Proxy local: chuyển /api/* đến đúng service khi chạy local
   async rewrites() {
