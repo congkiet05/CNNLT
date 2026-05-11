@@ -91,7 +91,7 @@ BEGIN
         cook_time       NVARCHAR(100)       NULL,   -- VD: "30 phút"
         difficulty      NVARCHAR(50)        NULL    -- "Dễ" | "Trung bình" | "Khó"
                             CONSTRAINT chk_recipes_difficulty
-                            CHECK (difficulty IN ('Dễ', 'Trung bình', 'Khó') OR difficulty IS NULL),
+                            CHECK (difficulty IN (N'Dễ', N'Trung bình', N'Khó') OR difficulty IS NULL),
         -- Trường tóm tắt nguyên liệu dạng text thuần để search
         -- Giới hạn 450 ký tự để index an toàn (NVARCHAR(450) = 900 bytes < 1700 bytes limit)
         ingredients_text NVARCHAR(450)      NULL,
@@ -100,7 +100,7 @@ BEGIN
         is_active       BIT                 NOT NULL DEFAULT 1,  -- Admin có thể ẩn công thức
         created_at      DATETIME2           NOT NULL DEFAULT GETDATE(),
         updated_at      DATETIME2           NOT NULL DEFAULT GETDATE(),
-        image_url NVARCHAR(500) NULL;
+        image_url NVARCHAR(500) NULL
     );
 END
 GO

@@ -49,7 +49,7 @@ DB_PASS = os.getenv("DB_PASSWORD", "")
 
 def get_connection():
     conn_str = (
-        f"DRIVER={{ODBC Driver 18 for SQL Server}};"
+        f"DRIVER={{ODBC Driver 17 for SQL Server}};"
         f"SERVER={DB_HOST},{DB_PORT};"
         f"DATABASE={DB_NAME};"
         f"UID={DB_USER};"
