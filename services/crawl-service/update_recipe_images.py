@@ -170,7 +170,12 @@ def main():
     # Lấy danh sách recipe cần update
     where = "WHERE is_active = 1"
     if not args.overwrite:
-        where += " AND (image_url IS NULL OR image_url = '' OR image_url LIKE '%source.unsplash%' OR image_url LIKE '%picsum%')"
+        where += (
+            " AND (image_url IS NULL OR image_url = '' "
+            "OR image_url LIKE '%source.unsplash%' "
+            "OR image_url LIKE '%picsum%' "
+            "OR image_url LIKE '%ytlogo.svg%')"
+        )
 
     limit_clause = f"TOP {args.limit}" if args.limit > 0 else ""
     cursor.execute(f"SELECT {limit_clause} id, name FROM recipes {where} ORDER BY id")
