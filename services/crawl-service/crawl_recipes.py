@@ -2,7 +2,7 @@
 crawl_recipes.py
 ────────────────────────────────────────────────────────────────
 Crawl công thức nấu ăn từ các website Việt Nam.
-Hỗ trợ: monngonmoingay.com, bepgiadinh.com
+Hỗ trợ: monngonmoingay.com (API + HTML scraping), bepgiadinh.com
 
 Chạy:
     python crawl_recipes.py --source monngon --limit 100
@@ -23,12 +23,10 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-DB_HOST = os.getenv("DB_HOST", "localhost")
-DB_PORT = os.getenv("DB_PORT", "1433")
-DB_NAME = os.getenv("DB_NAME", "food_recipe_db")
-DB_USER = os.getenv("DB_USER", "sa")
-DB_PASS = os.getenv("DB_PASSWORD", "")
+# ─── API Constants ──────────────────────────────────────────────────────────────
 
+API_BASE = "https://monngonmoingay.com/wp-json/wp/v2"
+MONAN_ENDPOINT = f"{API_BASE}/monan"
 HEADERS = {
     "User-Agent": (
         "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
@@ -44,9 +42,15 @@ SESSION.headers.update(HEADERS)
 
 # ─── DB ──────────────────────────────────────────────────────────────────────
 
+DB_HOST = os.getenv("DB_HOST", "localhost")
+DB_PORT = os.getenv("DB_PORT", "1433")
+DB_NAME = os.getenv("DB_NAME", "food_recipe_db")
+DB_USER = os.getenv("DB_USER", "sa")
+DB_PASS = os.getenv("DB_PASSWORD", "")
+
 def get_connection():
     conn_str = (
-        f"DRIVER={{ODBC Driver 18 for SQL Server}};"
+        f"DRIVER={{ODBC Driver 17 for SQL Server}};"
         f"SERVER={DB_HOST},{DB_PORT};"
         f"DATABASE={DB_NAME};"
         f"UID={DB_USER};"
@@ -102,11 +106,13 @@ def insert_recipe(conn, recipe: dict) -> bool:
 
 # ─── Helper ───────────────────────────────────────────────────────────────────
 
-def fetch(url: str, timeout: int = 15):
+def fetch(url: str, timeout: int = 30, json_response: bool = False):
     try:
         resp = SESSION.get(url, timeout=timeout, verify=False)
         resp.raise_for_status()
         resp.encoding = "utf-8"
+        if json_response:
+            return resp.json()
         return BeautifulSoup(resp.text, "html.parser")
     except Exception as e:
         print(f"  [FETCH ERROR] {url}: {e}")
@@ -117,29 +123,167 @@ def clean_text(text: str) -> str:
     return re.sub(r"\s+", " ", text).strip() if text else ""
 
 
-# ─── Source 1: monngonmoingay.com ────────────────────────────────────────────
+# ─── Source 1: monngonmoingay.com (API for recipe list + HTML scraping for details) ────
 
-MONNGON_CATEGORIES = [
-    "https://monngonmoingay.com/mon-xao/",
-    "https://monngonmoingay.com/mon-kho/",
-    "https://monngonmoingay.com/mon-canh/",
-    "https://monngonmoingay.com/mon-chien/",
-    "https://monngonmoingay.com/mon-nuong/",
-    "https://monngonmoingay.com/mon-hap/",
-    "https://monngonmoingay.com/mon-com/",
-    "https://monngonmoingay.com/mon-bun/",
+def get_recipe_links_from_api(limit: int = 100) -> list:
+    """Lấy danh sách recipe từ API monan"""
+    links = []
+    page = 1
+    per_page = min(100, limit)  # API max 100 per page
+
+    while len(links) < limit:
+        url = f"{MONAN_ENDPOINT}?per_page={per_page}&page={page}&_embed"
+        try:
+            data = fetch(url, json_response=True)
+            if not data:
+                break
+
+            for item in data:
+                if len(links) >= limit:
+                    break
+                links.append((item['link'], item['id']))  # Store URL and ID
+
+            page += 1
+            time.sleep(1)  # Rate limiting
+
+        except Exception as e:
+            print(f"[API ERROR] Page {page}: {e}")
+            break
+
+    return links[:limit]
+
+
+def parse_recipe_from_webpage(url: str) -> dict | None:
+    """Parse recipe from the actual webpage (HTML scraping)"""
+    try:
+        # Fetch the HTML page
+        soup = fetch(url)
+        if not soup:
+            return None
+
+        # Extract title
+        title_el = soup.select_one("h1, [class*='title']")
+        if not title_el:
+            return None
+        title = clean_text(title_el.get_text())
+
+        # Extract image
+        image_url = None
+        img = soup.select_one("img[alt], .post-thumbnail img, article img")
+        if img:
+            image_url = img.get("src") or img.get("data-src")
+
+        # Get all text content
+        content_text = soup.get_text('\n')
+        lines = content_text.split('\n')
+        
+        # Parse ingredients - look for "Nguyên Liệu:" section
+        ingredients = []
+        in_ingredients = False
+        for i, line in enumerate(lines):
+            line_clean = clean_text(line)
+            if not line_clean:
+                continue
+            
+            # Start of ingredients
+            if 'nguyên liệu' in line_clean.lower() and ':' in line_clean:
+                in_ingredients = True
+                continue
+            
+            # End of ingredients section
+            if in_ingredients and any(kw in line_clean.lower() for kw in ['sơ chế', 'thực hiện', 'cách dùng', 'mách nhỏ']):
+                in_ingredients = False
+                break
+            
+            # Parse ingredient lines - must have quantity/unit
+            if in_ingredients:
+                # Skip header lines
+                if any(kw in line_clean.lower() for kw in ['muỗng', 'gram', 'gia vị', 'm:']):
+                    continue
+                
+                # Look for ingredient pattern (ingredient name + amount + unit)
+                if any(unit in line_clean for unit in ['g', 'ml', 'M', 'm', 'cái', 'quả', 'chiếc', 'củ', 'lít', 'thìa', 'tách', 'bộ', 'bụi']):
+                    if len(line_clean) > 5 and len(line_clean) < 200 and not line_clean.isupper():
+                        ingredients.append({
+                            "ten_nguyen_lieu": line_clean,
+                            "so_luong": 1,
+                            "don_vi": "phần"
+                        })
+                        if len(ingredients) >= 30:
+                            break
+
+        # Parse steps - look for "Thực hiện:" or "Cách làm:" section
+        steps = []
+        in_steps = False
+        step_num = 0
+        
+        for line in lines:
+            line_clean = clean_text(line)
+            if not line_clean:
+                continue
+            
+            # Start of steps
+            if any(kw in line_clean.lower() for kw in ['thực hiện:', 'cách làm:', 'hướng dẫn:', 'các bước:']):
+                in_steps = True
+                continue
+            
+            # End of steps
+            if in_steps and any(kw in line_clean.lower() for kw in ['cách dùng', 'mách nhỏ', 'lưu ý']):
+                in_steps = False
+                break
+            
+            # Collect step content
+            if in_steps and len(line_clean) > 10 and len(line_clean) < 300:
+                # Skip numbering/headers
+                if not any(kw in line_clean.lower() for kw in ['bước', 'step']):
+                    step_num += 1
+                    steps.append({
+                        "buoc": step_num,
+                        "mo_ta": line_clean
+                    })
+                    if step_num >= 15:
+                        break
+
+        if not ingredients or not steps:
+            return None
+
+        return {
+            "name": title,
+            "ingredients": ingredients[:20],
+            "steps": steps,
+            "cook_time": None,
+            "difficulty": "Dễ",
+            "image_url": image_url,
+            "source_url": url,
+            "source_name": "MonNgonMoiNgay",
+        }
+
+    except Exception as e:
+        print(f"[PARSE ERROR] {url}: {e}")
+        return None
+
+
+# ─── Source 2: bepgiadinh.com ────────────────────────────────────────────────
+
+BEPGIADINH_CATEGORIES = [
+    "https://bepgiadinh.com/mon-xao/",
+    "https://bepgiadinh.com/mon-kho/",
+    "https://bepgiadinh.com/mon-canh/",
+    "https://bepgiadinh.com/mon-chien/",
+    "https://bepgiadinh.com/mon-nuong/",
+    "https://bepgiadinh.com/mon-hap/",
 ]
 
 
-def get_recipe_links_monngon(category_url: str, max_pages: int = 3) -> list:
+def get_recipe_links_bepgiadinh(category_url: str, max_pages: int = 3) -> list:
     links = []
     for page in range(1, max_pages + 1):
         url = category_url if page == 1 else f"{category_url}page/{page}/"
         soup = fetch(url)
         if not soup:
             break
-        articles = soup.select("h2.entry-title a, h2.post-title a, .post-title a, article h2 a")
-        page_links = [a["href"] for a in articles if a.get("href")]
+        articles = soup.select("h2.entry-title a, .post-title a, article h2 a")
+        page_links = [a["href"] for a in articles if a.get("href") and "bepgiadinh.com" in a.get("href", "")]
         if not page_links:
             break
         links.extend(page_links)
@@ -147,7 +291,7 @@ def get_recipe_links_monngon(category_url: str, max_pages: int = 3) -> list:
     return list(set(links))
 
 
-def parse_recipe_monngon(url: str) -> dict | None:
+def parse_recipe_bepgiadinh(url: str) -> dict | None:
     soup = fetch(url)
     if not soup:
         return None
@@ -178,7 +322,7 @@ def parse_recipe_monngon(url: str) -> dict | None:
                                     "ten_nguyen_lieu": text,
                                     "so_luong": 1,
                                     "don_vi": "phần"
-                                })
+                            })
                     break
 
         if not ingredients:
@@ -215,39 +359,11 @@ def parse_recipe_monngon(url: str) -> dict | None:
             "difficulty": "Dễ",
             "image_url": image_url,
             "source_url": url,
-            "source_name": "MonNgonMoiNgay",
+            "source_name": "BepGiaDinh",
         }
     except Exception as e:
         print(f"  [PARSE ERROR] {url}: {e}")
         return None
-
-
-# ─── Source 2: bepgiadinh.com ────────────────────────────────────────────────
-
-BEPGIADINH_CATEGORIES = [
-    "https://bepgiadinh.com/mon-xao/",
-    "https://bepgiadinh.com/mon-kho/",
-    "https://bepgiadinh.com/mon-canh/",
-    "https://bepgiadinh.com/mon-chien/",
-    "https://bepgiadinh.com/mon-nuong/",
-    "https://bepgiadinh.com/mon-hap/",
-]
-
-
-def get_recipe_links_bepgiadinh(category_url: str, max_pages: int = 3) -> list:
-    links = []
-    for page in range(1, max_pages + 1):
-        url = category_url if page == 1 else f"{category_url}page/{page}/"
-        soup = fetch(url)
-        if not soup:
-            break
-        articles = soup.select("h2.entry-title a, .post-title a, article h2 a")
-        page_links = [a["href"] for a in articles if a.get("href") and "bepgiadinh.com" in a.get("href", "")]
-        if not page_links:
-            break
-        links.extend(page_links)
-        time.sleep(1)
-    return list(set(links))
 
 
 # ─── Main ─────────────────────────────────────────────────────────────────────
@@ -272,26 +388,35 @@ def main():
             print(f"[ERROR] Không thể kết nối DB: {e}")
             sys.exit(1)
 
-    sources = []
-    if args.source in ("monngon", "all"):
-        sources.append(("MonNgonMoiNgay", MONNGON_CATEGORIES, get_recipe_links_monngon, parse_recipe_monngon))
-    if args.source in ("bepgiadinh", "all"):
-        sources.append(("BepGiaDinh", BEPGIADINH_CATEGORIES, get_recipe_links_bepgiadinh, parse_recipe_monngon))
-
     all_links = []
 
     print("\n[1/2] Thu thập danh sách URL công thức...")
-    for source_name, categories, get_links_fn, _ in sources:
-        for cat_url in categories:
+    
+    if args.source in ("monngon", "all"):
+        print(f"  MonNgonMoiNgay (API)")
+        links = get_recipe_links_from_api(args.limit)
+        all_links.extend([(url, "MonNgonMoiNgay") for url, _ in links])
+        print(f"    → {len(links)} links")
+
+    if args.source in ("bepgiadinh", "all"):
+        for cat_url in BEPGIADINH_CATEGORIES:
             if len(all_links) >= args.limit * 2:
                 break
             print(f"  {cat_url}")
-            links = get_links_fn(cat_url, max_pages=2)
-            all_links.extend([(url, source_name) for url in links])
+            links = get_recipe_links_bepgiadinh(cat_url, max_pages=2)
+            all_links.extend([(url, "BepGiaDinh") for url in links])
             print(f"    → {len(links)} links")
             time.sleep(1)
 
-    all_links = list(set(all_links))[:args.limit]
+    # Remove duplicates while preserving order
+    seen = set()
+    unique_links = []
+    for url, source in all_links:
+        if url not in seen:
+            seen.add(url)
+            unique_links.append((url, source))
+    
+    all_links = unique_links[:args.limit]
     print(f"\n[INFO] Tổng {len(all_links)} URL cần crawl")
 
     total_inserted = 0
@@ -299,8 +424,8 @@ def main():
     total_failed   = 0
 
     parse_fns = {
-        "MonNgonMoiNgay": parse_recipe_monngon,
-        "BepGiaDinh": parse_recipe_monngon,
+        "MonNgonMoiNgay": parse_recipe_from_webpage,
+        "BepGiaDinh": parse_recipe_bepgiadinh,
     }
 
     print("\n[2/2] Crawl chi tiết công thức...")
@@ -312,7 +437,7 @@ def main():
             print(f"    ✗ Không parse được")
             total_failed += 1
         elif args.dry_run:
-            print(f"    ✓ {recipe['name']} | {len(recipe['ingredients'])} nguyên liệu")
+            print(f"    ✓ {recipe['name']} | {len(recipe['ingredients'])} nguyên liệu | {len(recipe['steps'])} bước")
             total_inserted += 1
         else:
             ok = insert_recipe(conn, recipe)
