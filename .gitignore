@@ -110,3 +110,6 @@ vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 
 .kiro/
+
+__pycache__/
+*.pyc

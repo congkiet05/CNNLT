@@ -1,13 +1,12 @@
 """
 crawl_recipes.py
 ────────────────────────────────────────────────────────────────
-Crawl công thức nấu ăn từ các website Việt Nam.
-Hỗ trợ: monngonmoingay.com (API + HTML scraping), bepgiadinh.com
+Crawl công thức nấu ăn từ MonNgonMoiNgay.com.
 
 Chạy:
-    python crawl_recipes.py --source monngon --limit 100
-    python crawl_recipes.py --source bepgiadinh --limit 100
+    python crawl_recipes.py --limit 100
     python crawl_recipes.py --dry-run --limit 5
+    python crawl_recipes.py --skip-missing-image --limit 50
 """
 
 import argparse
@@ -50,7 +49,7 @@ DB_PASS = os.getenv("DB_PASSWORD", "")
 
 def get_connection():
     conn_str = (
-        f"DRIVER={{ODBC Driver 17 for SQL Server}};"
+        f"DRIVER={{ODBC Driver 18 for SQL Server}};"
         f"SERVER={DB_HOST},{DB_PORT};"
         f"DATABASE={DB_NAME};"
         f"UID={DB_USER};"
@@ -123,6 +122,37 @@ def clean_text(text: str) -> str:
     return re.sub(r"\s+", " ", text).strip() if text else ""
 
 
+def extract_image_url(soup: BeautifulSoup) -> str | None:
+    """Lấy URL ảnh từ nhiều nguồn fallback để tăng tỷ lệ bắt ảnh."""
+    selectors = [
+        "meta[property='og:image']",
+        "meta[name='twitter:image']",
+        "img[alt]",
+        ".post-thumbnail img",
+        "article img",
+        ".entry-content img",
+    ]
+
+    for selector in selectors:
+        element = soup.select_one(selector)
+        if not element:
+            continue
+
+        if element.name == "meta":
+            image_url = element.get("content")
+        else:
+            image_url = element.get("src") or element.get("data-src")
+            if not image_url:
+                srcset = element.get("srcset")
+                if srcset:
+                    image_url = srcset.split(",")[0].strip().split(" ")[0]
+
+        if image_url:
+            return image_url
+
+    return None
+
+
 # ─── Source 1: monngonmoingay.com (API for recipe list + HTML scraping for details) ────
 
 def get_recipe_links_from_api(limit: int = 100) -> list:
@@ -167,11 +197,8 @@ def parse_recipe_from_webpage(url: str) -> dict | None:
             return None
         title = clean_text(title_el.get_text())
 
-        # Extract image
-        image_url = None
-        img = soup.select_one("img[alt], .post-thumbnail img, article img")
-        if img:
-            image_url = img.get("src") or img.get("data-src")
+        # Extract image with multiple fallbacks
+        image_url = extract_image_url(soup)
 
         # Get all text content
         content_text = soup.get_text('\n')
@@ -247,6 +274,9 @@ def parse_recipe_from_webpage(url: str) -> dict | None:
         if not ingredients or not steps:
             return None
 
+        if not image_url:
+            print(f"  [INFO] {url}: không tìm thấy ảnh")
+
         return {
             "name": title,
             "ingredients": ingredients[:20],
@@ -263,108 +293,6 @@ def parse_recipe_from_webpage(url: str) -> dict | None:
         return None
 
 
-# ─── Source 2: bepgiadinh.com ────────────────────────────────────────────────
-
-BEPGIADINH_CATEGORIES = [
-    "https://bepgiadinh.com/mon-xao/",
-    "https://bepgiadinh.com/mon-kho/",
-    "https://bepgiadinh.com/mon-canh/",
-    "https://bepgiadinh.com/mon-chien/",
-    "https://bepgiadinh.com/mon-nuong/",
-    "https://bepgiadinh.com/mon-hap/",
-]
-
-
-def get_recipe_links_bepgiadinh(category_url: str, max_pages: int = 3) -> list:
-    links = []
-    for page in range(1, max_pages + 1):
-        url = category_url if page == 1 else f"{category_url}page/{page}/"
-        soup = fetch(url)
-        if not soup:
-            break
-        articles = soup.select("h2.entry-title a, .post-title a, article h2 a")
-        page_links = [a["href"] for a in articles if a.get("href") and "bepgiadinh.com" in a.get("href", "")]
-        if not page_links:
-            break
-        links.extend(page_links)
-        time.sleep(1)
-    return list(set(links))
-
-
-def parse_recipe_bepgiadinh(url: str) -> dict | None:
-    soup = fetch(url)
-    if not soup:
-        return None
-
-    try:
-        title_el = soup.select_one("h1.entry-title, h1.post-title, h1")
-        if not title_el:
-            return None
-        name = clean_text(title_el.text)
-
-        image_url = None
-        img = soup.select_one(".entry-content img, .post-thumbnail img, article img")
-        if img:
-            image_url = img.get("src") or img.get("data-src")
-
-        ingredients = []
-        content = soup.select_one(".entry-content, .post-content")
-        if content:
-            headings = content.find_all(["h2", "h3", "h4", "strong"])
-            for h in headings:
-                if "nguyên liệu" in h.text.lower():
-                    ul = h.find_next("ul")
-                    if ul:
-                        for li in ul.find_all("li"):
-                            text = clean_text(li.text)
-                            if text:
-                                ingredients.append({
-                                    "ten_nguyen_lieu": text,
-                                    "so_luong": 1,
-                                    "don_vi": "phần"
-                            })
-                    break
-
-        if not ingredients:
-            return None
-
-        steps = []
-        if content:
-            headings = content.find_all(["h2", "h3", "h4", "strong"])
-            for h in headings:
-                if any(kw in h.text.lower() for kw in ["cách làm", "thực hiện", "hướng dẫn", "các bước"]):
-                    ol = h.find_next("ol")
-                    if ol:
-                        for i, li in enumerate(ol.find_all("li"), 1):
-                            steps.append({"buoc": i, "mo_ta": clean_text(li.text)})
-                    else:
-                        for i, p in enumerate(h.find_next_siblings("p")[:8], 1):
-                            text = clean_text(p.text)
-                            if text and len(text) > 20:
-                                steps.append({"buoc": i, "mo_ta": text})
-                    break
-
-        if not steps and content:
-            paras = [clean_text(p.text) for p in content.find_all("p") if len(clean_text(p.text)) > 30]
-            steps = [{"buoc": i+1, "mo_ta": p} for i, p in enumerate(paras[:8])]
-
-        if not steps:
-            return None
-
-        return {
-            "name": name,
-            "ingredients": ingredients,
-            "steps": steps,
-            "cook_time": None,
-            "difficulty": "Dễ",
-            "image_url": image_url,
-            "source_url": url,
-            "source_name": "BepGiaDinh",
-        }
-    except Exception as e:
-        print(f"  [PARSE ERROR] {url}: {e}")
-        return None
-
 
 # ─── Main ─────────────────────────────────────────────────────────────────────
 
@@ -373,10 +301,14 @@ def main():
     import urllib3
     urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
-    parser = argparse.ArgumentParser(description="Crawl recipes from Vietnamese cooking websites")
-    parser.add_argument("--source", choices=["monngon", "bepgiadinh", "all"], default="all")
+    parser = argparse.ArgumentParser(description="Crawl recipes from MonNgonMoiNgay.com")
     parser.add_argument("--limit", type=int, default=100)
     parser.add_argument("--dry-run", action="store_true")
+    parser.add_argument(
+        "--skip-missing-image",
+        action="store_true",
+        help="Bỏ qua recipe nếu không crawl được ảnh",
+    )
     args = parser.parse_args()
 
     conn = None
@@ -392,21 +324,10 @@ def main():
 
     print("\n[1/2] Thu thập danh sách URL công thức...")
     
-    if args.source in ("monngon", "all"):
-        print(f"  MonNgonMoiNgay (API)")
-        links = get_recipe_links_from_api(args.limit)
-        all_links.extend([(url, "MonNgonMoiNgay") for url, _ in links])
-        print(f"    → {len(links)} links")
-
-    if args.source in ("bepgiadinh", "all"):
-        for cat_url in BEPGIADINH_CATEGORIES:
-            if len(all_links) >= args.limit * 2:
-                break
-            print(f"  {cat_url}")
-            links = get_recipe_links_bepgiadinh(cat_url, max_pages=2)
-            all_links.extend([(url, "BepGiaDinh") for url in links])
-            print(f"    → {len(links)} links")
-            time.sleep(1)
+    print(f"  MonNgonMoiNgay (API)")
+    links = get_recipe_links_from_api(args.limit)
+    all_links.extend([(url, "MonNgonMoiNgay") for url, _ in links])
+    print(f"    → {len(links)} links")
 
     # Remove duplicates while preserving order
     seen = set()
@@ -425,7 +346,6 @@ def main():
 
     parse_fns = {
         "MonNgonMoiNgay": parse_recipe_from_webpage,
-        "BepGiaDinh": parse_recipe_bepgiadinh,
     }
 
     print("\n[2/2] Crawl chi tiết công thức...")
@@ -436,6 +356,9 @@ def main():
         if not recipe:
             print(f"    ✗ Không parse được")
             total_failed += 1
+        elif args.skip_missing_image and not recipe.get("image_url"):
+            print(f"    ~ Bỏ qua vì không có ảnh: {recipe['name']}")
+            total_skipped += 1
         elif args.dry_run:
             print(f"    ✓ {recipe['name']} | {len(recipe['ingredients'])} nguyên liệu | {len(recipe['steps'])} bước")
             total_inserted += 1
