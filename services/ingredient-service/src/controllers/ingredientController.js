@@ -1,6 +1,6 @@
 const { getGeminiClient } = require('../config/gemini');
 
-const GEMINI_MODEL = 'gemini-2.5-flash';
+const GEMINI_MODEL = 'gemini-2.0-flash';
 
 // Prompt chi tiết gửi kèm ảnh cho Gemini
 const INGREDIENT_PROMPT = `Hãy đóng vai một chuyên gia ẩm thực. Nhìn vào bức ảnh này và liệt kê tất cả nguyên liệu nấu ăn bạn thấy.

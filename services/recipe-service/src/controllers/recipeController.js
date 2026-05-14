@@ -219,7 +219,7 @@ async function suggestRecipes(req, res) {
 async function getRecipes(req, res) {
   try {
     const page  = Math.max(1, parseInt(req.query.page) || 1);
-    const limit = Math.min(50, Math.max(1, parseInt(req.query.limit) || 12));
+    const limit = Math.min(200, Math.max(1, parseInt(req.query.limit) || 12));
     const offset = (page - 1) * limit;
     const search = req.query.search?.trim() || '';
 
@@ -245,7 +245,7 @@ async function getRecipes(req, res) {
     const total = countResult.recordset[0].total;
 
     const listResult = await request.query(`
-      SELECT id, name, cook_time, difficulty, ingredients_text, created_at
+      SELECT id, name, cook_time, difficulty, ingredients_text, image_url, created_at
       FROM recipes
       ${whereClause}
       ORDER BY created_at DESC

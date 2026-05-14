@@ -88,7 +88,7 @@ def insert_recipe(conn, recipe: dict) -> bool:
                 ingredients_json,
                 steps_json,
                 recipe.get("cook_time"),
-                recipe.get("difficulty"),
+                recipe.get("difficulty"),  # None = NULL, tránh constraint lỗi
                 ing_text,
                 recipe["source_url"],
                 recipe["source_name"],
@@ -282,7 +282,7 @@ def parse_recipe_from_webpage(url: str) -> dict | None:
             "ingredients": ingredients[:20],
             "steps": steps,
             "cook_time": None,
-            "difficulty": "Dễ",
+            "difficulty": None,
             "image_url": image_url,
             "source_url": url,
             "source_name": "MonNgonMoiNgay",
