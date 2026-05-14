@@ -13,6 +13,7 @@ Chạy:
 import argparse
 import json
 import os
+import re
 import sys
 import time
 import pyodbc
@@ -24,7 +25,7 @@ load_dotenv()
 # ─── Config ──────────────────────────────────────────────────────────────────
 
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
-GEMINI_MODEL   = "gemini-2.5-flash"
+GEMINI_MODEL   = "gemini-2.0-flash"
 
 DB_HOST = os.getenv("DB_HOST", "localhost")
 DB_PORT = os.getenv("DB_PORT", "1433")
@@ -101,7 +102,7 @@ Quy tắc bắt buộc:
 
 def get_connection():
     conn_str = (
-        f"DRIVER={{ODBC Driver 18 for SQL Server}};"
+        f"DRIVER={{ODBC Driver 17 for SQL Server}};"
         f"SERVER={DB_HOST},{DB_PORT};"
         f"DATABASE={DB_NAME};"
         f"UID={DB_USER};"
@@ -148,8 +149,13 @@ def insert_recipes(conn, recipes: list[dict], source_name: str = "Gemini Generat
             steps       = json.dumps(recipe["steps"], ensure_ascii=False)
             cook_time   = recipe.get("cook_time", "").strip() or None
             difficulty  = recipe.get("difficulty", "").strip()
-            if difficulty not in ("Dễ", "Trung bình", "Khó"):
-                difficulty = None
+            # Normalize difficulty - Gemini đôi khi trả về sai case
+            difficulty_map = {
+                "dễ": "Dễ", "de": "Dễ",
+                "trung bình": "Trung bình", "trung binh": "Trung bình",
+                "khó": "Khó", "kho": "Khó",
+            }
+            difficulty = difficulty_map.get(difficulty.lower(), None)
 
             # ingredients_text: tên nguyên liệu cách nhau dấu phẩy (tối đa 450 ký tự)
             ing_names = ", ".join(
@@ -256,11 +262,30 @@ def main():
 
         try:
             prompt = build_prompt(topic, count_this_topic)
-            response = client.models.generate_content(
-                model=GEMINI_MODEL,
-                contents=prompt,
-            )
-            raw_text = response.text.strip()
+
+            # Retry tối đa 3 lần nếu bị rate limit
+            raw_text = None
+            for attempt in range(3):
+                try:
+                    response = client.models.generate_content(
+                        model=GEMINI_MODEL,
+                        contents=prompt,
+                    )
+                    raw_text = response.text.strip()
+                    break
+                except Exception as e:
+                    err_str = str(e)
+                    # Tìm retryDelay trong message
+                    match = re.search(r"retryDelay.*?(\d+)s", err_str)
+                    wait = int(match.group(1)) + 2 if match else 60
+                    if "429" in err_str or "RESOURCE_EXHAUSTED" in err_str:
+                        print(f"  [RATE LIMIT] Chờ {wait}s rồi thử lại (lần {attempt+1}/3)...")
+                        time.sleep(wait)
+                    else:
+                        raise
+
+            if raw_text is None:
+                raise Exception("Hết số lần retry do rate limit")
 
             # Làm sạch markdown nếu có
             cleaned = (
@@ -301,7 +326,7 @@ def main():
                 log_crawl(conn, "Gemini Generate", "error", msg)
 
         # Delay nhỏ tránh rate limit
-        time.sleep(1.5)
+        time.sleep(3)
 
     # ─── Kết quả ─────────────────────────────────────────────
     print("\n" + "="*50)
