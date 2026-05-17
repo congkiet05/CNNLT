@@ -136,10 +136,11 @@ export default function RecipeDetailPage({ params }: { params: Promise<{ id: str
           <img
             src={imageUrl}
             alt={recipe.name}
-            className="h-full w-full object-cover"
+            className="h-full w-full object-cover animate-in fade-in zoom-in-105 duration-1000 ease-out"
             onError={() => setImageError(true)}
           />
-          <div className="absolute inset-0 bg-gradient-to-t from-foreground/80 via-foreground/40 to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent mix-blend-multiply" />
+          <div className="absolute inset-0 bg-primary/10 mix-blend-overlay" />
           <div className="absolute inset-0 flex items-end">
             <div className="container mx-auto px-4 pb-8">
               <button
@@ -149,9 +150,9 @@ export default function RecipeDetailPage({ params }: { params: Promise<{ id: str
                 <ArrowLeft className="h-4 w-4" />
                 Quay lại
               </button>
-              <div>
-                <Badge className="mb-3 bg-primary">{recipe.difficulty || "Dễ"}</Badge>
-                <h1 className="mb-2 text-3xl font-bold text-white md:text-4xl">{recipe.name}</h1>
+              <div className="animate-in fade-in slide-in-from-bottom-8 duration-1000 delay-300 fill-mode-backwards">
+                <Badge className="mb-3 bg-primary shadow-lg">{recipe.difficulty || "Dễ"}</Badge>
+                <h1 className="mb-2 font-heading text-4xl md:text-5xl lg:text-6xl font-bold text-white drop-shadow-lg">{recipe.name}</h1>
                 <div className="mt-3 flex flex-wrap items-center gap-4 text-white/80">
                   {recipe.cook_time && (
                     <div className="flex items-center gap-1">
@@ -183,7 +184,7 @@ export default function RecipeDetailPage({ params }: { params: Promise<{ id: str
                 <TabsContent value="recipe" className="space-y-6">
                   <Card>
                     <CardHeader>
-                      <CardTitle className="flex items-center gap-2">
+                      <CardTitle className="flex items-center gap-2 font-heading text-2xl font-bold">
                         <ChefHat className="h-5 w-5 text-primary" />
                         Nguyên Liệu ({recipe.ingredients?.length || 0})
                       </CardTitle>
@@ -193,9 +194,9 @@ export default function RecipeDetailPage({ params }: { params: Promise<{ id: str
                         {recipe.ingredients?.map((ing, idx) => (
                           <div
                             key={idx}
-                            className="flex items-center justify-between rounded-lg border border-border bg-muted/30 p-3"
+                            className="group flex items-center justify-between rounded-lg border border-border bg-muted/30 p-3 transition-all duration-300 hover:-translate-y-0.5 hover:bg-muted/60 hover:shadow-sm"
                           >
-                            <span className="text-foreground">{ing.ten_nguyen_lieu}</span>
+                            <span className="font-medium text-foreground transition-colors group-hover:text-primary">{ing.ten_nguyen_lieu}</span>
                             <span className="text-sm text-muted-foreground">
                               {ing.so_luong} {ing.don_vi}
                             </span>
@@ -207,7 +208,7 @@ export default function RecipeDetailPage({ params }: { params: Promise<{ id: str
 
                   <Card>
                     <CardHeader>
-                      <CardTitle>Các Bước Thực Hiện</CardTitle>
+                      <CardTitle className="font-heading text-2xl font-bold">Các Bước Thực Hiện</CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-4">
                       {recipe.steps?.map((step: any, idx: number) => {
@@ -219,17 +220,17 @@ export default function RecipeDetailPage({ params }: { params: Promise<{ id: str
                         return (
                           <div
                             key={stepNum}
-                            className={`relative rounded-xl border p-4 transition-colors ${
-                              isDone ? "border-primary bg-primary/5" : "border-border bg-card"
+                            className={`group relative rounded-xl border p-4 transition-all duration-300 hover:shadow-md ${
+                              isDone ? "border-primary bg-primary/5" : "border-border bg-card hover:border-primary/50"
                             }`}
                           >
                             <div className="flex gap-4">
                               <button
                                 onClick={() => toggleStep(stepNum)}
-                                className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full border-2 transition-colors ${
+                                className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full border-2 transition-all duration-300 group-hover:scale-110 ${
                                   isDone
-                                    ? "border-primary bg-primary text-primary-foreground"
-                                    : "border-muted-foreground text-muted-foreground hover:border-primary hover:text-primary"
+                                    ? "border-primary bg-primary text-primary-foreground shadow-lg shadow-primary/30"
+                                    : "border-muted-foreground text-muted-foreground group-hover:border-primary group-hover:text-primary"
                                 }`}
                               >
                                 {isDone ? <CheckCircle className="h-5 w-5" /> : stepNum}
@@ -249,7 +250,7 @@ export default function RecipeDetailPage({ params }: { params: Promise<{ id: str
                 <TabsContent value="video">
                   <Card>
                     <CardHeader>
-                      <CardTitle className="flex items-center gap-2">
+                      <CardTitle className="flex items-center gap-2 font-heading text-2xl font-bold">
                         <Play className="h-5 w-5 text-primary" />
                         Video Hướng Dẫn: {recipe.name}
                       </CardTitle>
@@ -272,16 +273,23 @@ export default function RecipeDetailPage({ params }: { params: Promise<{ id: str
                             <div className="space-y-2">
                               <p className="text-sm font-medium text-muted-foreground">Video khác:</p>
                               {videos.map((v) => (
-                                <button
-                                  key={v.video_id}
-                                  onClick={() => setSelectedVideo(v.embed_url)}
-                                  className={`flex w-full items-center gap-3 rounded-lg border p-3 text-left transition-colors hover:bg-muted/50 ${
-                                    selectedVideo === v.embed_url ? "border-primary bg-primary/5" : "border-border"
-                                  }`}
-                                >
-                                  <img src={v.thumbnail} alt={v.title} className="h-16 w-24 rounded object-cover" />
-                                  <div className="flex-1 overflow-hidden">
-                                    <p className="line-clamp-2 text-sm font-medium text-foreground">{v.title}</p>
+                                  <button
+                                    key={v.video_id}
+                                    onClick={() => setSelectedVideo(v.embed_url)}
+                                    className={`group flex w-full items-center gap-4 rounded-xl border p-3 text-left transition-all duration-300 hover:shadow-md ${
+                                      selectedVideo === v.embed_url ? "border-primary bg-primary/5 shadow-sm" : "border-border hover:border-primary/50"
+                                    }`}
+                                  >
+                                    <div className="relative h-20 w-32 shrink-0 overflow-hidden rounded-lg">
+                                      <img src={v.thumbnail} alt={v.title} className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110" />
+                                      {selectedVideo === v.embed_url && (
+                                        <div className="absolute inset-0 flex items-center justify-center bg-black/40">
+                                          <Play className="h-6 w-6 text-white" fill="white" />
+                                        </div>
+                                      )}
+                                    </div>
+                                    <div className="flex-1 overflow-hidden">
+                                      <p className="line-clamp-2 text-sm font-medium text-foreground group-hover:text-primary transition-colors">{v.title}</p>
                                     <p className="text-xs text-muted-foreground">{v.channel}</p>
                                   </div>
                                 </button>
@@ -308,10 +316,10 @@ export default function RecipeDetailPage({ params }: { params: Promise<{ id: str
             </div>
 
             {/* Sidebar */}
-            <div className="space-y-6">
+            <div className="space-y-6 lg:sticky lg:top-24 lg:h-[calc(100vh-6rem)] lg:overflow-y-auto lg:pb-8 animate-in fade-in slide-in-from-right-8 duration-1000 delay-500 fill-mode-backwards custom-scrollbar">
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-lg">Thông Tin</CardTitle>
+                  <CardTitle className="font-heading text-xl font-bold">Thông Tin</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-3">
                   {recipe.cook_time && (
@@ -337,7 +345,7 @@ export default function RecipeDetailPage({ params }: { params: Promise<{ id: str
 
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-lg">Tiến Độ Nấu</CardTitle>
+                  <CardTitle className="font-heading text-xl font-bold">Tiến Độ Nấu</CardTitle>
                 </CardHeader>
                 <CardContent>
                   {/* Progress bar */}
@@ -355,7 +363,7 @@ export default function RecipeDetailPage({ params }: { params: Promise<{ id: str
                     </div>
                     <div className="h-2 overflow-hidden rounded-full bg-muted">
                       <div
-                        className="h-full bg-primary transition-all duration-300"
+                        className="h-full bg-gradient-to-r from-primary via-orange-400 to-yellow-500 transition-all duration-500 shadow-[0_0_10px_rgba(251,146,60,0.5)]"
                         style={{
                           width: `${(() => {
                             const validSteps = recipe.steps?.filter((s: any) => {
@@ -386,8 +394,8 @@ export default function RecipeDetailPage({ params }: { params: Promise<{ id: str
                               : "border-border hover:bg-muted/50 text-muted-foreground"
                           }`}
                         >
-                          <div className={`flex h-5 w-5 shrink-0 items-center justify-center rounded border-2 transition-colors ${
-                            isDone ? "border-primary bg-primary" : "border-muted-foreground"
+                          <div className={`flex h-5 w-5 shrink-0 items-center justify-center rounded border-2 transition-all duration-300 ${
+                            isDone ? "border-primary bg-primary shadow-sm" : "border-muted-foreground"
                           }`}>
                             {isDone && (
                               <svg className="h-3 w-3 text-primary-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>

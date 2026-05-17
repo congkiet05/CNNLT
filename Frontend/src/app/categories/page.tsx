@@ -114,12 +114,14 @@ export default function CategoriesPage() {
 
       <main className="flex-1 bg-muted/30">
         {/* Header */}
-        <div className="bg-gradient-to-b from-primary/10 to-transparent py-16">
-          <div className="container mx-auto px-4 text-center">
-            <h1 className="mb-4 text-4xl font-bold text-foreground">Danh Mục Món Ăn</h1>
+        <div className="bg-gradient-to-b from-primary/10 to-transparent py-16 relative overflow-hidden">
+          <div className="container relative z-10 mx-auto px-4 text-center">
+            <h1 className="mb-6 font-heading text-5xl md:text-6xl font-bold text-foreground tracking-tight drop-shadow-sm">
+              Khám Phá <span className="bg-gradient-to-r from-primary via-orange-500 to-yellow-500 bg-clip-text text-transparent">Danh Mục</span>
+            </h1>
             <p className="mx-auto max-w-2xl text-lg text-muted-foreground">
-              Khám phá {allRecipes.length > 0 ? allRecipes.length : "hàng trăm"} công thức món ăn được phân loại theo từng danh mục,
-              giúp bạn dễ dàng tìm kiếm món ăn phù hợp.
+              Khám phá {allRecipes.length > 0 ? allRecipes.length : "hàng trăm"} công thức món ăn được phân loại tinh tế,
+              giúp bạn dễ dàng tìm kiếm hương vị yêu thích.
             </p>
           </div>
         </div>
@@ -138,12 +140,12 @@ export default function CategoriesPage() {
                   const previews = getPreviewRecipes(allRecipes, cat.keywords)
                   return (
                     <Link key={cat.id} href={`/recipes?category=${cat.id}`}>
-                      <Card className="group h-full overflow-hidden border-0 bg-card shadow-lg transition-all hover:-translate-y-2 hover:shadow-xl">
-                        <div className="relative h-40 overflow-hidden">
+                      <Card className="group h-full overflow-hidden border-0 bg-card shadow-lg transition-all duration-500 hover:-translate-y-2 hover:shadow-2xl">
+                        <div className="relative h-48 overflow-hidden">
                           <img
                             src={cat.image}
                             alt={cat.name}
-                            className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110"
+                            className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-110"
                           />
                           <div className={`absolute inset-0 bg-gradient-to-t ${cat.color} to-transparent`} />
                           <div className="absolute inset-0 flex items-center justify-center">
@@ -154,7 +156,7 @@ export default function CategoriesPage() {
                         </div>
                         <CardContent className="p-5">
                           <div className="mb-1 flex items-center justify-between">
-                            <h3 className="text-lg font-bold text-foreground group-hover:text-primary">
+                            <h3 className="font-heading text-2xl font-bold text-foreground group-hover:text-primary transition-colors">
                               {cat.name}
                             </h3>
                             <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
@@ -197,7 +199,7 @@ export default function CategoriesPage() {
             {/* Top 3 món mới nhất trong mỗi danh mục */}
             <div className="bg-card py-16">
               <div className="container mx-auto px-4">
-                <h2 className="mb-8 text-center text-3xl font-bold text-foreground">
+                <h2 className="mb-10 text-center font-heading text-4xl font-bold text-foreground tracking-tight">
                   Nổi Bật Trong Mỗi Danh Mục
                 </h2>
                 <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
@@ -211,7 +213,7 @@ export default function CategoriesPage() {
                             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
                               <cat.icon className="h-5 w-5 text-primary" />
                             </div>
-                            <h3 className="font-semibold text-foreground">{cat.name}</h3>
+                            <h3 className="font-heading text-xl font-bold text-foreground">{cat.name}</h3>
                           </div>
                           <div className="space-y-3">
                             {previews.map((recipe, idx) => (

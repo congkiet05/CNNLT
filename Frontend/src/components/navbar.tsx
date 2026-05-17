@@ -26,26 +26,30 @@ export function Navbar() {
   }
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b border-border bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/60">
+    <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/70 backdrop-blur-xl shadow-sm supports-[backdrop-filter]:bg-background/50">
       <div className="container mx-auto flex h-16 items-center justify-between px-4">
-        <Link href="/" className="flex items-center gap-2">
-          <ChefHat className="h-8 w-8 text-primary" />
-          <span className="text-xl font-bold text-foreground">CookSmart AI</span>
+        <Link href="/" className="flex items-center gap-2 group">
+          <ChefHat className="h-8 w-8 text-primary transition-transform group-hover:scale-110" />
+          <span className="font-heading text-2xl font-bold text-foreground tracking-tight">CookSmart AI</span>
         </Link>
 
         {/* Desktop Navigation */}
         <nav className="hidden items-center gap-6 md:flex">
-          <Link href="/" className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground">
+          <Link href="/" className="relative text-sm font-medium text-foreground/80 transition-colors hover:text-primary group">
             Trang Chủ
+            <span className="absolute inset-x-0 -bottom-1.5 h-0.5 bg-primary origin-left scale-x-0 transition-transform duration-300 group-hover:scale-x-100 rounded-full" />
           </Link>
-          <Link href="/recipes" className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground">
+          <Link href="/recipes" className="relative text-sm font-medium text-foreground/80 transition-colors hover:text-primary group">
             Món Ăn
+            <span className="absolute inset-x-0 -bottom-1.5 h-0.5 bg-primary origin-left scale-x-0 transition-transform duration-300 group-hover:scale-x-100 rounded-full" />
           </Link>
-          <Link href="/scan" className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground">
+          <Link href="/scan" className="relative text-sm font-medium text-foreground/80 transition-colors hover:text-primary group">
             Nhận Diện Nguyên Liệu
+            <span className="absolute inset-x-0 -bottom-1.5 h-0.5 bg-primary origin-left scale-x-0 transition-transform duration-300 group-hover:scale-x-100 rounded-full" />
           </Link>
-          <Link href="/categories" className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground">
+          <Link href="/categories" className="relative text-sm font-medium text-foreground/80 transition-colors hover:text-primary group">
             Danh Mục
+            <span className="absolute inset-x-0 -bottom-1.5 h-0.5 bg-primary origin-left scale-x-0 transition-transform duration-300 group-hover:scale-x-100 rounded-full" />
           </Link>
           {user?.role === "admin" && (
             <Link href="/admin" className="text-sm font-medium text-primary transition-colors hover:text-primary/80">

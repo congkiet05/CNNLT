@@ -7,12 +7,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge"
 import { Navbar } from "@/components/navbar"
 import { Footer } from "@/components/footer"
-import { 
-  Camera, 
-  Upload, 
-  X, 
-  Sparkles, 
-  ImageIcon, 
+import {
+  Camera,
+  Upload,
+  X,
+  Sparkles,
+  ImageIcon,
   Loader2,
   Check,
   Edit3,
@@ -68,7 +68,7 @@ interface SuggestedRecipe {
           setStep("suggestions")
         }
       }
-    } catch {}
+    } catch { }
   })
 
 
@@ -116,10 +116,10 @@ interface SuggestedRecipe {
       const listToSave: ApiIngredient[] = rawIngredients.length > 0
         ? rawIngredients
         : ingredients.map(ing => ({
-            ten_nguyen_lieu: ing.name,
-            so_luong: 1,
-            don_vi: "phần",
-          }))
+          ten_nguyen_lieu: ing.name,
+          so_luong: 1,
+          don_vi: "phần",
+        }))
 
       await scanSessionApi.save(listToSave)
 
@@ -145,14 +145,14 @@ interface SuggestedRecipe {
           return `https://picsum.photos/seed/${topic}-${id}/400/300`
         }
         const mapped = result.recipes.map((r: ApiSuggestedRecipe) => ({
-            id: r.id,
-            name: r.name,
-            image: r.image_url || getFallbackImage(r.name, r.id),
-            matchPercentage: r.matchPercentage,
-            missingIngredients: r.missingIngredients,
-            time: r.cook_time || "30 phút",
-            difficulty: r.difficulty || "Dễ",
-          }))
+          id: r.id,
+          name: r.name,
+          image: r.image_url || getFallbackImage(r.name, r.id),
+          matchPercentage: r.matchPercentage,
+          missingIngredients: r.missingIngredients,
+          time: r.cook_time || "30 phút",
+          difficulty: r.difficulty || "Dễ",
+        }))
         setSuggestedRecipes(mapped)
         // Lưu vào sessionStorage để restore khi quay lại từ trang chi tiết
         try {
@@ -160,7 +160,7 @@ interface SuggestedRecipe {
             recipes: mapped,
             ingredientList: ingredients,
           }))
-        } catch {}
+        } catch { }
       } else {
         setSuggestedRecipes([])
       }
@@ -179,7 +179,7 @@ interface SuggestedRecipe {
   }
 
   const handleEditIngredient = (id: string, newName: string) => {
-    setIngredients(prev => prev.map(ing => 
+    setIngredients(prev => prev.map(ing =>
       ing.id === id ? { ...ing, name: newName, isEditing: false } : ing
     ))
   }
@@ -203,26 +203,26 @@ interface SuggestedRecipe {
     setRawIngredients([])
     setSuggestedRecipes([])
     setScanError(null)
-    try { sessionStorage.removeItem("scan_suggestions") } catch {}
+    try { sessionStorage.removeItem("scan_suggestions") } catch { }
   }
 
   return (
     <div className="flex min-h-screen flex-col">
       <Navbar />
-      
+
       <main className="flex-1 bg-muted/30 py-8">
         <div className="container mx-auto px-4">
           {/* Progress Steps */}
           <div className="mb-8 flex items-center justify-center gap-4">
             <div className={`flex items-center gap-2 ${step === "upload" ? "text-primary" : "text-muted-foreground"}`}>
-              <div className={`flex h-8 w-8 items-center justify-center rounded-full ${step === "upload" ? "bg-primary text-primary-foreground" : step !== "upload" ? "bg-primary text-primary-foreground" : "bg-muted"}`}>
+              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-primary-foreground">
                 {step !== "upload" ? <Check className="h-4 w-4" /> : "1"}
               </div>
               <span className="hidden text-sm font-medium sm:block">Tải Ảnh</span>
             </div>
             <div className="h-px w-8 bg-border md:w-16" />
             <div className={`flex items-center gap-2 ${step === "analyzing" || step === "results" ? "text-primary" : "text-muted-foreground"}`}>
-              <div className={`flex h-8 w-8 items-center justify-center rounded-full ${step === "results" || step === "suggestions" ? "bg-primary text-primary-foreground" : step === "analyzing" ? "bg-primary text-primary-foreground" : "bg-muted"}`}>
+              <div className={`flex h-8 w-8 items-center justify-center rounded-full ${step !== "upload" ? "bg-primary text-primary-foreground" : "bg-muted"}`}>
                 {step === "results" || step === "suggestions" ? <Check className="h-4 w-4" /> : "2"}
               </div>
               <span className="hidden text-sm font-medium sm:block">Nhận Diện</span>
@@ -241,7 +241,7 @@ interface SuggestedRecipe {
             <div className="mx-auto max-w-2xl">
               <Card className="border-2 border-dashed border-primary/20 bg-card">
                 <CardHeader className="text-center">
-                  <CardTitle className="text-2xl">Tải Ảnh Nguyên Liệu</CardTitle>
+                  <CardTitle className="font-heading text-3xl font-bold text-foreground drop-shadow-sm">Tải Ảnh <span className="bg-gradient-to-r from-primary to-orange-400 bg-clip-text text-transparent">Nguyên Liệu</span></CardTitle>
                   <CardDescription>
                     Chụp hoặc tải lên hình ảnh các nguyên liệu có sẵn trong bếp của bạn
                   </CardDescription>
@@ -275,15 +275,15 @@ interface SuggestedRecipe {
                         className="hidden"
                         onChange={handleFileSelect}
                       />
-                      <Button 
-                        variant="outline" 
+                      <Button
+                        variant="outline"
                         className="gap-2"
                         onClick={() => fileInputRef.current?.click()}
                       >
                         <Upload className="h-4 w-4" />
                         Chọn Ảnh
                       </Button>
-                      <Button 
+                      <Button
                         className="gap-2"
                         onClick={() => cameraInputRef.current?.click()}
                       >
@@ -314,9 +314,9 @@ interface SuggestedRecipe {
                 <CardContent className="flex flex-col items-center justify-center py-16">
                   {selectedImage && (
                     <div className="relative mb-8 overflow-hidden rounded-xl">
-                      <img 
-                        src={selectedImage} 
-                        alt="Uploaded ingredients" 
+                      <img
+                        src={selectedImage}
+                        alt="Uploaded ingredients"
                         className="h-64 w-full object-cover"
                       />
                       <div className="absolute inset-0 flex items-center justify-center bg-foreground/50">
@@ -345,14 +345,14 @@ interface SuggestedRecipe {
                 {/* Image Preview */}
                 <Card className="bg-card">
                   <CardHeader>
-                    <CardTitle className="text-lg">Ảnh Đã Tải Lên</CardTitle>
+                    <CardTitle className="font-heading text-xl font-bold">Ảnh Đã Tải Lên</CardTitle>
                   </CardHeader>
                   <CardContent>
                     {selectedImage && (
                       <div className="relative overflow-hidden rounded-xl">
-                        <img 
-                          src={selectedImage} 
-                          alt="Uploaded ingredients" 
+                        <img
+                          src={selectedImage}
+                          alt="Uploaded ingredients"
                           className="h-64 w-full object-cover"
                         />
                         <Button
@@ -373,7 +373,7 @@ interface SuggestedRecipe {
                 <Card className="bg-card">
                   <CardHeader>
                     <div className="flex items-center justify-between">
-                      <CardTitle className="text-lg">Nguyên Liệu Nhận Diện</CardTitle>
+                      <CardTitle className="font-heading text-xl font-bold">Nguyên Liệu Nhận Diện</CardTitle>
                       <Badge variant="secondary" className="bg-primary/10 text-primary">
                         {ingredients.length} nguyên liệu
                       </Badge>
@@ -384,7 +384,7 @@ interface SuggestedRecipe {
                   </CardHeader>
                   <CardContent className="space-y-3">
                     {ingredients.map((ingredient) => (
-                      <div 
+                      <div
                         key={ingredient.id}
                         className="flex items-center justify-between rounded-lg border border-border bg-muted/30 p-3"
                       >
@@ -414,7 +414,7 @@ interface SuggestedRecipe {
                             size="icon"
                             variant="ghost"
                             className="h-8 w-8"
-                            onClick={() => setIngredients(prev => prev.map(ing => 
+                            onClick={() => setIngredients(prev => prev.map(ing =>
                               ing.id === ingredient.id ? { ...ing, isEditing: true } : ing
                             ))}
                           >
@@ -447,8 +447,8 @@ interface SuggestedRecipe {
                       </Button>
                     </div>
 
-                    <Button 
-                      className="w-full gap-2" 
+                    <Button
+                      className="w-full gap-2"
                       size="lg"
                       onClick={handleGetSuggestions}
                       disabled={ingredients.length === 0 || isSaving}
@@ -478,7 +478,7 @@ interface SuggestedRecipe {
               {/* Summary */}
               <div className="flex flex-wrap items-center justify-between gap-4">
                 <div>
-                  <h2 className="text-2xl font-bold text-foreground">Món Ăn Gợi Ý</h2>
+                  <h2 className="font-heading text-4xl font-bold text-foreground drop-shadow-sm">Món Ăn <span className="bg-gradient-to-r from-primary to-orange-400 bg-clip-text text-transparent">Gợi Ý</span></h2>
                   <p className="text-muted-foreground">
                     Dựa trên {ingredients.length} nguyên liệu: {ingredients.map(i => i.name).join(", ")}
                   </p>
@@ -492,23 +492,24 @@ interface SuggestedRecipe {
               <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
                 {suggestedRecipes.map((recipe) => (
                   <Link key={recipe.id} href={`/recipes/${recipe.id}`}>
-                    <Card className="group h-full overflow-hidden bg-card transition-all hover:-translate-y-1 hover:shadow-xl">
-                      <div className="relative aspect-[4/3] overflow-hidden">
+                    <Card className="group h-full overflow-hidden border-0 bg-card shadow-lg transition-all duration-500 hover:-translate-y-2 hover:shadow-2xl">
+                      <div className="relative aspect-[4/3] overflow-hidden bg-muted">
                         <img
                           src={recipe.image}
                           alt={recipe.name}
-                          className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                          className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-110"
                         />
-                        <div className="absolute left-2 top-2">
-                          <Badge 
-                            className={`${recipe.matchPercentage >= 90 ? "bg-primary" : recipe.matchPercentage >= 70 ? "bg-accent text-accent-foreground" : "bg-muted text-muted-foreground"}`}
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                        <div className="absolute left-2 top-2 z-10">
+                          <Badge
+                            className={`${recipe.matchPercentage >= 90 ? "bg-primary shadow-md" : recipe.matchPercentage >= 70 ? "bg-accent text-accent-foreground shadow-md" : "bg-muted text-muted-foreground shadow-md"}`}
                           >
                             {recipe.matchPercentage}% phù hợp
                           </Badge>
                         </div>
                       </div>
-                      <CardContent className="p-4">
-                        <h3 className="mb-2 font-semibold text-foreground group-hover:text-primary">
+                      <CardContent className="relative p-5 z-10">
+                        <h3 className="mb-2 font-heading text-xl font-bold text-foreground group-hover:text-primary transition-colors">
                           {recipe.name}
                         </h3>
                         <div className="mb-3 flex items-center gap-3 text-sm text-muted-foreground">
