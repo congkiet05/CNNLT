@@ -1,7 +1,8 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
+// Chú ý dòng này: Phải có đủ các thành phần bên trong { }
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
@@ -50,7 +51,8 @@ import {
   CheckCircle,
   XCircle,
   Download,
-  Upload
+  Upload,
+  CloudSun // Thêm icon thời tiết
 } from "lucide-react"
 
 const recipes = [
@@ -129,10 +131,39 @@ export default function AdminRecipesPage() {
   const [statusFilter, setStatusFilter] = useState("all")
   const [categoryFilter, setCategoryFilter] = useState("all")
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
+  
+  // --- PHẦN BỔ SUNG: STATE CHO THỜI TIẾT ---
+  const [weatherInfo, setWeatherInfo] = useState<any>(null)
+  const [isWeatherLoading, setIsWeatherLoading] = useState(false)
+
+  useEffect(() => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(async (position) => {
+        setIsWeatherLoading(true)
+        try {
+          const res = await fetch('/api/weather-recommend', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              lat: position.coords.latitude,
+              lon: position.coords.longitude
+            })
+          })
+          const data = await res.json()
+          setWeatherInfo(data)
+        } catch (error) {
+          console.error("Lỗi fetch weather:", error)
+        } finally {
+          setIsWeatherLoading(false)
+        }
+      })
+    }
+  }, [])
+  // ------------------------------------------
 
   const filteredRecipes = recipes.filter(recipe => {
     const matchesSearch = recipe.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         recipe.author.toLowerCase().includes(searchQuery.toLowerCase())
+                          recipe.author.toLowerCase().includes(searchQuery.toLowerCase())
     const matchesStatus = statusFilter === "all" || recipe.status === statusFilter
     const matchesCategory = categoryFilter === "all" || recipe.category === categoryFilter
     return matchesSearch && matchesStatus && matchesCategory
@@ -235,6 +266,39 @@ export default function AdminRecipesPage() {
           </DialogContent>
         </Dialog>
       </div>
+
+      {/* --- PHẦN BỔ SUNG: UI GỢI Ý THỜI TIẾT --- */}
+      {weatherInfo && (
+        <Card className="border-orange-200 bg-orange-50/40 dark:bg-orange-950/10">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-lg flex items-center gap-2 text-orange-700 dark:text-orange-400">
+              <CloudSun className="h-5 w-5" />
+              Gợi ý từ Trợ lý AI ({weatherInfo.city})
+              <Badge variant="outline" className="ml-auto bg-orange-100 text-orange-700 border-orange-200">
+                {weatherInfo.temp}°C
+              </Badge>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm font-medium text-orange-900 dark:text-orange-200 mb-3">
+              {weatherInfo.message}
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {weatherInfo.suggestedRecipes?.map((recipe: any) => (
+                <Badge 
+                  key={recipe.id} 
+                  variant="secondary" 
+                  className="bg-white hover:bg-orange-100 cursor-pointer border-orange-100 text-orange-800 shadow-sm"
+                >
+                  <Star className="mr-1 h-3 w-3 fill-orange-400 text-orange-400" />
+                  {recipe.name}
+                </Badge>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+      {/* ------------------------------------------ */}
 
       {/* Filters */}
       <Card>
