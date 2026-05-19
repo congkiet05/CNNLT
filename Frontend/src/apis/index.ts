@@ -322,3 +322,29 @@ export const scanSessionApi = {
     return apiFetch(`/ingredients/sessions/${sessionId}`, {}, true);
   },
 };
+
+// ─── Weather API ──────────────────────────────────────────────────────────────
+
+export interface WeatherCondition {
+  type: string;
+  label: string;
+  message: string;
+  keywords: string[];
+  icon: string;
+}
+
+export interface WeatherSuggestionResponse {
+  success: boolean;
+  weather: {
+    temp: number;
+    code: number;
+    condition: WeatherCondition;
+  };
+  recipes: SuggestedRecipe[];
+}
+
+export const weatherApi = {
+  async suggestByLocation(lat: number, lon: number): Promise<WeatherSuggestionResponse> {
+    return apiFetch<WeatherSuggestionResponse>(`/weather/suggest?lat=${lat}&lon=${lon}`);
+  }
+};

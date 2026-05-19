@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Navbar } from "@/components/navbar"
 import { Footer } from "@/components/footer"
+import { WeatherSuggestions } from "@/components/weather-suggestions"
 import {
   Camera,
   Sparkles,
@@ -128,6 +129,9 @@ export default function HomePage() {
             </div>
           </div>
         </section>
+
+        {/* Weather Suggestions */}
+        <WeatherSuggestions />
 
         {/* How It Works */}
         <section className="py-20 bg-gradient-to-b from-background to-muted/30">
