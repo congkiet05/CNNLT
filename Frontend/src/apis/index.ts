@@ -75,8 +75,8 @@ export const tokenStorage = {
   clearTokens: () => {
     localStorage.removeItem(TOKEN_KEY);
     localStorage.removeItem(REFRESH_KEY);
-    // Xóa cookie
-    document.cookie = 'access_token=; path=/; max-age=0';
+    // Xóa cookie bằng cách set expire date về quá khứ
+    document.cookie = 'access_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax';
   },
 };
 

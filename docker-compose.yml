@@ -15,7 +15,7 @@ services:
       - sqlserver_data:/var/opt/mssql
       - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql
     healthcheck:
-      test: ["CMD", "/opt/mssql-tools18/bin/sqlcmd", "-S", "localhost", "-U", "sa", "-P", "${DB_PASSWORD}", "-C", "-Q", "SELECT 1"]
+      test: [ "CMD", "/opt/mssql-tools18/bin/sqlcmd", "-S", "localhost", "-U", "sa", "-P", "${DB_PASSWORD}", "-C", "-Q", "SELECT 1" ]
       interval: 15s
       timeout: 10s
       retries: 10
@@ -81,27 +81,6 @@ services:
       JWT_SECRET: "${JWT_SECRET}"
       CORS_ORIGIN: "${CORS_ORIGIN:-*}"
       YOUTUBE_API_KEY: "${YOUTUBE_API_KEY}"
-    depends_on:
-      sqlserver:
-        condition: service_healthy
-    networks:
-      - food_network
-    restart: unless-stopped
-
-  # ─── Weather Service ─────────────────────────────────────
-  weather-service:
-    build:
-      context: ./services/weather-service
-      dockerfile: Dockerfile
-    container_name: food_weather_service
-    environment:
-      PORT: 3004
-      DB_HOST: sqlserver
-      DB_PORT: 1433
-      DB_NAME: food_recipe_db
-      DB_USER: sa
-      DB_PASSWORD: "${DB_PASSWORD}"
-      CORS_ORIGIN: "${CORS_ORIGIN:-*}"
     depends_on:
       sqlserver:
         condition: service_healthy

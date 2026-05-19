@@ -39,9 +39,9 @@ export default function LoginPage() {
     // user is set in context after login; read from result or re-fetch
     const me = await import("@/apis").then(m => m.authApi.getMe())
     if (me?.role === "admin") {
-      router.push("/admin")
+      window.location.href = "/admin"
     } else {
-      router.push("/")
+      window.location.href = "/"
     }
   }
 
