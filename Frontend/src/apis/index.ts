@@ -190,6 +190,13 @@ export const authApi = {
       return null;
     }
   },
+
+  async updateProfile(display_name: string): Promise<{ success: boolean; message: string }> {
+    return apiFetch<{ success: boolean; message: string }>('/auth/me', {
+      method: 'PUT',
+      body: JSON.stringify({ display_name }),
+    }, true);
+  },
 };
 
 // ─── Ingredient API ───────────────────────────────────────────────────────────

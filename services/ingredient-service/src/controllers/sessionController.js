@@ -104,9 +104,20 @@ async function getScanSessions(req, res) {
         OFFSET @offset ROWS FETCH NEXT @limit ROWS ONLY
       `);
 
+    const sessions = listResult.recordset.map(session => {
+      try {
+        return {
+          ...session,
+          ingredient_list: JSON.parse(session.ingredient_list)
+        };
+      } catch {
+        return session;
+      }
+    });
+
     return res.status(200).json({
       success: true,
-      sessions: listResult.recordset,
+      sessions,
       pagination: {
         page,
         limit,

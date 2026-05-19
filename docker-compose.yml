@@ -15,7 +15,7 @@ services:
       - sqlserver_data:/var/opt/mssql
       - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql
     healthcheck:
-      test: ["CMD", "/opt/mssql-tools/bin/sqlcmd", "-S", "localhost", "-U", "sa", "-P", "${DB_PASSWORD}", "-Q", "SELECT 1"]
+      test: ["CMD", "/opt/mssql-tools18/bin/sqlcmd", "-S", "localhost", "-U", "sa", "-P", "${DB_PASSWORD}", "-C", "-Q", "SELECT 1"]
       interval: 15s
       timeout: 10s
       retries: 10
@@ -80,6 +80,7 @@ services:
       DB_PASSWORD: "${DB_PASSWORD}"
       JWT_SECRET: "${JWT_SECRET}"
       CORS_ORIGIN: "${CORS_ORIGIN:-*}"
+      YOUTUBE_API_KEY: "${YOUTUBE_API_KEY}"
     depends_on:
       sqlserver:
         condition: service_healthy

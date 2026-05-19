@@ -2,7 +2,7 @@ const express = require('express');
 const { body } = require('express-validator');
 const router = express.Router();
 
-const { register, login, refreshToken, logout, getMe } = require('../controllers/authController');
+const { register, login, refreshToken, logout, getMe, updateMe } = require('../controllers/authController');
 const { validate } = require('../middleware/validate');
 const { authenticateToken } = require('../middleware/auth');
 
@@ -37,6 +37,9 @@ router.post('/logout', logout);
 
 // GET /api/auth/me  (yêu cầu đăng nhập)
 router.get('/me', authenticateToken, getMe);
+
+// PUT /api/auth/me  (yêu cầu đăng nhập)
+router.put('/me', authenticateToken, updateMe);
 
 // GET /api/auth/validate  (dùng nội bộ bởi Nginx auth_request)
 // Trả về 200 + X-User-ID, X-User-Role nếu token hợp lệ, 401 nếu không

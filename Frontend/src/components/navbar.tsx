@@ -88,13 +88,13 @@ export function Navbar() {
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild>
-                  <Link href="/favorites" className="flex cursor-pointer items-center">
+                  <Link href="/profile?tab=favorites" className="flex cursor-pointer items-center">
                     <Heart className="mr-2 h-4 w-4" />
                     Món Yêu Thích
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild>
-                  <Link href="/history" className="flex cursor-pointer items-center">
+                  <Link href="/profile?tab=history" className="flex cursor-pointer items-center">
                     <History className="mr-2 h-4 w-4" />
                     Lịch Sử Tìm Kiếm
                   </Link>
