@@ -242,4 +242,29 @@ async function getMe(req, res) {
   }
 }
 
-module.exports = { register, login, refreshToken, logout, getMe };
+/**
+ * PUT /api/auth/me
+ * Header: Authorization: Bearer <token>
+ * Body: { display_name }
+ */
+async function updateMe(req, res) {
+  try {
+    const { display_name } = req.body;
+    if (!display_name || display_name.trim() === '') {
+      return res.status(400).json({ success: false, message: 'Tên hiển thị không được để trống' });
+    }
+
+    const pool = await getPool();
+    await pool.request()
+      .input('id', sql.Int, req.user.id)
+      .input('display_name', sql.NVarChar(255), display_name.trim())
+      .query('SET QUOTED_IDENTIFIER ON; UPDATE users SET display_name = @display_name WHERE id = @id');
+
+    return res.status(200).json({ success: true, message: 'Cập nhật hồ sơ thành công' });
+  } catch (err) {
+    console.error('[updateMe]', err);
+    return res.status(500).json({ success: false, message: 'Lỗi server' });
+  }
+}
+
+module.exports = { register, login, refreshToken, logout, getMe, updateMe };
